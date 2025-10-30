@@ -1,0 +1,71 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #1a1a1a;
+  color: #f5f5f5;
+}
+
+.popup-container {
+  padding: 16px;
+  width: 320px;
+}
+
+h2 {
+  text-align: center;
+  color: #ff69b4; /* Pink accent */
+  margin-bottom: 12px;
+}
+
+.status-box {
+  background: #2a2a2a;
+  color: #ff69b4;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+button {
+  background-color: #ff69b4;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 0 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+button:hover {
+  background-color: #ff85c1;
+}
+
+.result-box {
+  margin-top: 12px;
+}
+
+textarea {
+  width: 100%;
+  height: 100px;
+  background-color: #2a2a2a;
+  color: #f5f5f5;
+  border: 1px solid #f392ea;
+  border-radius: 6px;
+  padding: 6px;
+  resize: none;
+}
+
+footer {
+  text-align: center;
+  font-size: 11px;
+  margin-top: 8px;
+  color: #ff69b4;
+}
