@@ -9,28 +9,32 @@ import SettingsScreen from './screens/SettingsScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { SupabaseProvider } from './context/SupabaseContext';
 import { useEffect } from 'react';
-import { Linking } from 'react-native';
+
+// --- Import the hook ---
+import { useShareIntent } from 'expo-share-intent';
+// --- Import your handler function ---
 import { handleIncomingShare } from './utils/shareUtils';
 
 const Tab = createBottomTabNavigator();
 
 export default function App() {
+  // --- Use the hook here ---
+  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+
   useEffect(() => {
-    const handleInitialUrl = async () => {
-      const initialUrl = await Linking.getInitialURL();
-      if (initialUrl) {
-        await handleIncomingShare(initialUrl);
+    if (hasShareIntent) {
+      // Get the shared URL (from a browser) or text (from a notes app, etc.)
+      const sharedUrl = shareIntent.webUrl || shareIntent.text;
+
+      if (sharedUrl) {
+        // Call your function from shareUtils.js
+        handleIncomingShare(sharedUrl);
       }
-    };
 
-    handleInitialUrl();
-
-    const subscription = Linking.addEventListener('url', async (event) => {
-      await handleIncomingShare(event.url);
-    });
-
-    return () => subscription.remove();
-  }, []);
+      // Clear the intent so it doesn't run again on app re-open
+      resetShareIntent();
+    }
+  }, [hasShareIntent]); // This effect will run when `hasShareIntent` changes
 
   return (
     <SupabaseProvider>
@@ -105,4 +109,3 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
 });
-

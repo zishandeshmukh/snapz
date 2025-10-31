@@ -2,12 +2,13 @@
   "expo": {
     "name": "SnapMind",
     "slug": "snapmind-mobile",
+    "scheme": "snapmind",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/adaptive-icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/adaptive-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#09090b"
     },
@@ -36,26 +37,33 @@
         "android.permission.INTERNET",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
-      ],
-      "intentFilters": [
-        {
-          "action": "android.intent.action.SEND",
-          "category": [
-            "android.intent.category.DEFAULT"
-          ],
-          "data": [
-            {
-              "mimeType": "text/plain"
-            }
-          ]
-        }
       ]
     },
     "web": {
       "favicon": "./assets/adaptive-icon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-share-intent",
+        {
+          "ios": {
+            "activationRules": {
+              "NSExtensionActivationSupportsText": true,
+              "NSExtensionActivationSupportsWebURLWithMaxCount": 1
+            }
+          },
+          "android": {
+            "intentFilters": [
+              {
+                "action": "SEND",
+                "mimeType": "text/plain"
+              }
+            ],
+            "launchMode": "singleTask"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
