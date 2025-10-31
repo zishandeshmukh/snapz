@@ -38,10 +38,12 @@ app.post('/searchNLPSql', async (req,res)=>{
 })
 
 // === ROUTE 1: /receive_data (for text content) ===
-// Reusable processing function: analyze text via OpenAI and save to Supabase
-async function analyzeAndSave(rawText, sourceUrl = null) {
+app.post('/receive_data', async (req, res) => {
+    const rawText = req.body;
+    console.log("Received raw text data...");
+
     if (!rawText || rawText.length < 20) {
-        throw new Error('Insufficient text data received.');
+        return res.status(400).json({ error: "Insufficient text data received." });
     }
 
     const todaysTimestamp = new Date().toISOString();
@@ -52,88 +54,35 @@ async function analyzeAndSave(rawText, sourceUrl = null) {
         "timestamp" (use ${todaysTimestamp} if none is found), and "source_url" (return null if not found).
     `;
 
-    console.log("Sending data to OpenAI for analysis...");
-    const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-        messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Analyze this text:\n---\n${rawText}\n---` }
-        ]
-    });
-
-    const jsonResponseText = completion.choices[0].message.content || '{}';
-    const structuredData = JSON.parse(jsonResponseText);
-    console.log("Successfully parsed structured data from OpenAI.");
-
-    // If caller provided a source URL, prefer it when source_url is missing/null
-    if (sourceUrl && (!structuredData.source_url || structuredData.source_url === null)) {
-        structuredData.source_url = sourceUrl;
-    }
-
-    console.log("Saving to Supabase...");
-    const { error: dbError } = await supabase
-        .from('content_documents')
-        .insert([{ metadata: structuredData }]);
-
-    if (dbError) throw dbError;
-
-    console.log("Successfully saved data to Supabase.");
-    return structuredData;
-}
-
-// Existing /receive_data now delegates to analyzeAndSave
-app.post('/receive_data', async (req, res) => {
     try {
-        const rawText = req.body;
-        console.log("/receive_data invoked");
-        const result = await analyzeAndSave(rawText);
-        res.status(200).json(result);
+        console.log("Sending data to OpenAI for analysis...");
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            temperature: 0.2,
+            response_format: { type: 'json_object' },
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `Analyze this text:\n---\n${rawText}\n---` }
+            ]
+        });
+
+        const jsonResponseText = completion.choices[0].message.content || '{}';
+        const structuredData = JSON.parse(jsonResponseText);
+        console.log("Successfully parsed structured data from OpenAI.");
+
+        console.log("Saving to Supabase...");
+        const { error: dbError } = await supabase
+            .from('content_documents')
+            .insert([{ metadata: structuredData }]);
+        
+        if (dbError) throw dbError;
+        
+        console.log("Successfully saved data to Supabase.");
+        res.status(200).json(structuredData);
+
     } catch (error) {
         console.error("Error in /receive_data route:", error);
-        res.status(500).json({ error: error.message || "Failed to process data." });
-    }
-});
-
-// === ROUTE: /mobile/share ===
-// This endpoint accepts mobile share payloads and reuses the same AI processing pipeline.
-// Expected JSON body: { url: string, title?: string, description?: string, metadata?: object }
-app.post('/mobile/share', async (req, res) => {
-    // If MOBILE_API_KEY is set in env, require it in the x-api-key header
-    const mobileApiKey = process.env.MOBILE_API_KEY;
-    if (mobileApiKey) {
-        const provided = req.headers['x-api-key'] || req.headers['X-API-KEY'];
-        if (!provided || provided !== mobileApiKey) {
-            console.warn('Unauthorized mobile share attempt');
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-    }
-    try {
-        const { url, title, description, metadata } = req.body || {};
-
-        if (!url && !title && !description) {
-            return res.status(400).json({ error: 'At least one of url, title or description must be provided.' });
-        }
-
-        // Build a combined text payload for the analyzer that mirrors web extension behavior.
-        let combined = '';
-        if (title) combined += `${title}\n\n`;
-        if (description) combined += `${description}\n\n`;
-        if (url) combined += `Source URL: ${url}\n\n`;
-        if (metadata && typeof metadata === 'object') {
-            try {
-                combined += `Metadata: ${JSON.stringify(metadata)}\n`;
-            } catch (e) {
-                // ignore metadata serialization errors
-            }
-        }
-
-        const structured = await analyzeAndSave(combined, url || null);
-        return res.status(200).json(structured);
-    } catch (error) {
-        console.error('Error in /mobile/share:', error);
-        return res.status(500).json({ error: error.message || 'Failed to process mobile share.' });
+        res.status(500).json({ error: "Failed to process data." });
     }
 });
 // === ROUTE 2: /searchByImage (UPDATED with keyword cleaning) ===
