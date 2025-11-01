@@ -19,7 +19,8 @@ export default function HomeScreen() {
   };
 
   const recent = useMemo(() => 
-    memories.slice(0, 10),
+    // memories.slice(0, 10),
+  memories,
     [memories]
   );
 

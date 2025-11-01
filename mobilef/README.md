@@ -36,3 +36,4 @@ Your personal digital memory assistant for iOS and Android.
 ```
 
 ---
+npx expo install expo-receive-sharing-intent

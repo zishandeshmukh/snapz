@@ -16,7 +16,7 @@ export const sendToBackend = async (title, url, content) => {
   try {
     const textForAI = `Title: ${title}\nURL: ${url}\n\n${content}`;
     
-    const response = await fetch(`${BACKEND_URL}/receive_data`, {
+    const response = await fetch('https://snapmind-backend.onrender.com/receive_data', {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
@@ -31,17 +31,21 @@ export const sendToBackend = async (title, url, content) => {
     return await response.json();
   } catch (error) {
     console.error('Error sending to backend:', error);
-    throw error;
+    throw error;  
   }
 };
 
-export const deriveType = (url) => {
-  if (!url) return 'text';
-  if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
-  if (url.includes('linkedin.com')) return 'linkedin';
-  if (url.includes('x.com') || url.includes('twitter.com')) return 'twitter';
-  if (url.includes('reddit.com')) return 'reddit';
-  if (url.includes('instagram.com')) return 'instagram';
-  return 'article';
-};
+// This helper function determines the 'type' based on the URL
+export function deriveType(url) {
+    if (!url) return 'text';
+    if (url.includes('youtube.com')) return 'youtube';
+    if (url.includes('linkedin.com')) return 'linkedin';
+    if (url.includes('x.com')) return 'twitter';
+    if (url.includes('reddit.com')) return 'reddit';
+    if (url.includes('quora.com')) return 'quora';
+    if (url.includes('instagram.com')) return 'instagram';
+    if (url.endsWith('.pdf')) return 'pdf';
+    return 'article';
+}
+
 

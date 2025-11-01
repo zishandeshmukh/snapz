@@ -9,33 +9,69 @@ import SettingsScreen from './screens/SettingsScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { SupabaseProvider } from './context/SupabaseContext';
 import { useEffect } from 'react';
-
-// --- Import the hook ---
-import { useShareIntent } from 'expo-share-intent';
-// --- Import your handler function ---
+import { Linking } from 'react-native';
 import { handleIncomingShare } from './utils/shareUtils';
+import ReceiveSharingIntent from 'expo-receive-sharing-intent';
+// Make sure your sendToBackend function is exported from this file
+import { sendToBackend } from './utils/shareUtils';
+import { Alert } from 'react-native';
 
 const Tab = createBottomTabNavigator();
 
 export default function App() {
-  // --- Use the hook here ---
-  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
-
-  useEffect(() => {
-    if (hasShareIntent) {
-      // Get the shared URL (from a browser) or text (from a notes app, etc.)
-      const sharedUrl = shareIntent.webUrl || shareIntent.text;
-
-      if (sharedUrl) {
-        // Call your function from shareUtils.js
-        handleIncomingShare(sharedUrl);
+ useEffect(() => {
+    // This function will be called when a share is received
+    const handleShare = (files) => {
+      if (files && files.length > 0) {
+        
+        // Extract the URL or text from the share data
+        // On Android, this can be 'text' or 'weblink'. On iOS, it's usually 'text'.
+        const sharedContent = files[0].text || files[0].weblink || files[0].url;
+        
+        if (sharedContent) {
+          console.log('Received shared content:', sharedContent);
+          
+          // Show an alert to the user confirming receipt and asking to proceed
+          Alert.alert(
+            'Content Received!',
+            `Send this to your SnapMind dashboard?\n\n(${sharedContent})`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+              {
+                text: 'OK',
+                onPress: async () => {
+                  try {
+                    // Use your existing sendToBackend function
+                    // We'll use the URL as the title for now and provide minimal content
+                    await sendToBackend(sharedContent, sharedContent, 'Shared from mobile');
+                    Alert.alert('Success!', 'Added to your SnapMind dashboard.');
+                  } catch (e) {
+                    console.error('Failed to send to backend', e);
+                    Alert.alert('Error', 'Could not save this memory.');
+                  }
+                },
+              },
+            ]
+          );
+        }
       }
+    };
 
-      // Clear the intent so it doesn't run again on app re-open
-      resetShareIntent();
-    }
-  }, [hasShareIntent]); // This effect will run when `hasShareIntent` changes
+    // 1. Listen for shared files when the app is already open
+    const subscription = ReceiveSharingIntent.addReceiveSharingIntentListener(handleShare);
 
+    // 2. Get files shared when the app was closed or in the background
+    ReceiveSharingIntent.getReceivedSharingIntent(handleShare);
+
+    // 3. Clean up the listener when the app is unmounted
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+  // --- END OF HOOK ---
   return (
     <SupabaseProvider>
       <NavigationContainer>
@@ -109,3 +145,4 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
 });
+
