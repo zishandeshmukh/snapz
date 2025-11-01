@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useSupabase } from '../context/SupabaseContext';
 import { sendToBackend } from '../utils/shareUtils';
+// --- 1. IMPORT NAVIGATION HOOKS ---
+import { useRoute, useIsFocused, useNavigation } from '@react-navigation/native';
 
 export default function AddScreen() {
   const { fetchMemories } = useSupabase() || { fetchMemories: () => {} };
@@ -19,16 +21,39 @@ export default function AddScreen() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // --- 2. GET NAVIGATION PROPS ---
+  const route = useRoute();
+  const navigation = useNavigation();
+  const isFocused = useIsFocused(); // Check if the screen is focused
+
+  // --- 3. ADD EFFECT TO LISTEN FOR SHARED URL ---
+  useEffect(() => {
+    // Check if the screen is focused AND there's a sharedUrl param
+    if (isFocused && route.params?.sharedUrl) {
+      const { sharedUrl } = route.params;
+      
+      // Set the URL in the state
+      setUrl(sharedUrl);
+      
+      // Clear the param so it doesn't run again if you re-focus the tab
+      navigation.setParams({ sharedUrl: null });
+    }
+  }, [isFocused, route.params, navigation]); // Re-run when these change
+
   const handleAdd = async () => {
-    if (!title.trim()) {
-      Alert.alert('Error', 'Title is required');
+    // Updated logic: Only require a title OR a URL
+    if (!title.trim() && !url.trim()) { 
+      Alert.alert('Error', 'Title or URL is required');
       return;
     }
 
     setLoading(true);
 
     try {
-      await sendToBackend(title, url, content);
+      // Use the URL as the title if the title is empty
+      const memoryTitle = title.trim() || url;
+      
+      await sendToBackend(memoryTitle, url, content);
       
       Alert.alert('Success', 'Memory saved successfully!');
       
@@ -59,12 +84,12 @@ export default function AddScreen() {
         </View>
 
         {/* Title Input */}
-        <Text style={styles.label}>Title *</Text>
+        <Text style={styles.label}>Title (optional)</Text>
         <TextInput
           style={styles.input}
           value={title}
           onChangeText={setTitle}
-          placeholder="Enter title"
+          placeholder="Enter title (or leave blank to use URL)"
           placeholderTextColor="#52525b"
         />
 
@@ -94,9 +119,10 @@ export default function AddScreen() {
 
         {/* Save Button */}
         <TouchableOpacity
-          style={[styles.addBtn, (loading || !title.trim()) && styles.addBtnDisabled]}
+          // Update disabled logic to match the handleAdd check
+          style={[styles.addBtn, (loading || (!title.trim() && !url.trim())) && styles.addBtnDisabled]}
           onPress={handleAdd}
-          disabled={loading || !title.trim()}
+          disabled={loading || (!title.trim() && !url.trim())}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
@@ -161,7 +187,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   addBtnText: {
-    color: '#fff',
+    color:  '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },

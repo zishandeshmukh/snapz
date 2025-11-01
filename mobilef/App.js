@@ -1,4 +1,4 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
@@ -9,122 +9,95 @@ import SettingsScreen from './screens/SettingsScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { SupabaseProvider } from './context/SupabaseContext';
 import { useEffect } from 'react';
-import { Linking } from 'react-native';
-import { handleIncomingShare } from './utils/shareUtils';
-import ReceiveSharingIntent from 'expo-receive-sharing-intent';
-// Make sure your sendToBackend function is exported from this file
-import { sendToBackend } from './utils/shareUtils';
-import { Alert } from 'react-native';
+// --- 1. IMPORT THE CORRECT HOOK ---
+import { useShareIntent } from 'expo-share-intent';
 
 const Tab = createBottomTabNavigator();
 
+// We need to wrap the main navigator in a component to use hooks
+function AppNavigator() {
+  const navigation = useNavigation();
+  // --- 2. USE THE HOOK TO GET SHARE DATA ---
+  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+
+  useEffect(() => {
+    if (hasShareIntent && shareIntent.webUrl) {
+      console.log('Received shared URL:', shareIntent.webUrl);
+      
+      // --- 3. NAVIGATE TO ADD SCREEN WITH THE URL ---
+      navigation.navigate('Add', { sharedUrl: shareIntent.webUrl });
+
+      // --- 4. CLEAR THE INTENT ---
+      resetShareIntent();
+    }
+  }, [hasShareIntent, shareIntent, navigation, resetShareIntent]);
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: '#06b6d4',
+        tabBarInactiveTintColor: '#71717a',
+        headerStyle: styles.header,
+        headerTintColor: '#fff',
+        tabBarShowLabel: false,
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+          headerTitle: 'SnapMind',
+        }}
+      />
+      <Tab.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Add"
+        component={AddScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="add-circle-outline" size={size} color={color} />
+          ),
+          headerTitle: 'Quick Add',
+        }}
+        // This line ensures that when you share, it brings the Add tab to the front
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Add', { sharedUrl: null }); // Go to Add screen, but clear any old URL
+          },
+        })}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
- useEffect(() => {
-    // This function will be called when a share is received
-    const handleShare = (files) => {
-      if (files && files.length > 0) {
-        
-        // Extract the URL or text from the share data
-        // On Android, this can be 'text' or 'weblink'. On iOS, it's usually 'text'.
-        const sharedContent = files[0].text || files[0].weblink || files[0].url;
-        
-        if (sharedContent) {
-          console.log('Received shared content:', sharedContent);
-          
-          // Show an alert to the user confirming receipt and asking to proceed
-          Alert.alert(
-            'Content Received!',
-            `Send this to your SnapMind dashboard?\n\n(${sharedContent})`,
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel',
-              },
-              {
-                text: 'OK',
-                onPress: async () => {
-                  try {
-                    // Use your existing sendToBackend function
-                    // We'll use the URL as the title for now and provide minimal content
-                    await sendToBackend(sharedContent, sharedContent, 'Shared from mobile');
-                    Alert.alert('Success!', 'Added to your SnapMind dashboard.');
-                  } catch (e) {
-                    console.error('Failed to send to backend', e);
-                    Alert.alert('Error', 'Could not save this memory.');
-                  }
-                },
-              },
-            ]
-          );
-        }
-      }
-    };
-
-    // 1. Listen for shared files when the app is already open
-    const subscription = ReceiveSharingIntent.addReceiveSharingIntentListener(handleShare);
-
-    // 2. Get files shared when the app was closed or in the background
-    ReceiveSharingIntent.getReceivedSharingIntent(handleShare);
-
-    // 3. Clean up the listener when the app is unmounted
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-  // --- END OF HOOK ---
   return (
     <SupabaseProvider>
       <NavigationContainer>
         <StatusBar style="light" />
-        <Tab.Navigator
-          screenOptions={{
-            tabBarStyle: styles.tabBar,
-            tabBarActiveTintColor: '#06b6d4',
-            tabBarInactiveTintColor: '#71717a',
-            headerStyle: styles.header,
-            headerTintColor: '#fff',
-            tabBarShowLabel: false,
-          }}
-        >
-          <Tab.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="home-outline" size={size} color={color} />
-              ),
-              headerTitle: 'SnapMind',
-            }}
-          />
-          <Tab.Screen
-            name="Search"
-            component={SearchScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="search-outline" size={size} color={color} />
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Add"
-            component={AddScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="add-circle-outline" size={size} color={color} />
-              ),
-              headerTitle: 'Quick Add',
-            }}
-          />
-          <Tab.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="settings-outline" size={size} color={color} />
-              ),
-            }}
-          />
-        </Tab.Navigator>
+        <AppNavigator />
       </NavigationContainer>
     </SupabaseProvider>
   );
@@ -145,4 +118,3 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
 });
-
