@@ -1,0 +1,74 @@
+<DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root { --bg: #09090b; --text: #fff; --muted: #a1a1aa; --accent: #fff; --border: #27272a; }
+    body { width: 350px; height: 500px; background: var(--bg); color: var(--text); font-family: system-ui; margin: 0; padding: 24px; display: flex; flex-direction: column; justify-content: center; }
+    h1 { font-size: 24px; margin: 0 0 8px 0; font-weight: 700; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+    input { width: 100%; padding: 12px; margin: 8px 0; background: #1a1a1a; border: 1px solid var(--border); border-radius: 8px; color: white; font-size: 14px; }
+    button { width: 100%; padding: 12px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; margin-top: 16px; cursor: pointer; font-size: 14px; }
+    .link { color: var(--muted); text-align: center; margin-top: 16px; cursor: pointer; font-size: 13px; }
+    .error { color: #ef4444; font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .loading { text-align: center; }
+  </style>
+</head>
+<body>
+  <div>
+    <h1 id="authTitle">Welcome Back</h1>
+    <div class="subtitle">Capture & recall your digital life</div>
+    <input type="email" id="email" placeholder="Email" autocomplete="email">
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+    <button id="authBtn">Login</button>
+    <div class="link" id="toggleLink">Don't have an account? Sign up</div>
+    <div class="error" id="error"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabase = supabase.createClient(
+      'https://your-project.supabase.co',
+      'YOUR_ANON_KEY'
+    );
+    
+    let isLogin = true;
+    
+    document.getElementById('toggleLink').onclick = () => {
+      isLogin = !isLogin;
+      document.getElementById('authTitle').textContent = isLogin ? 'Welcome Back' : 'Create Account';
+      document.getElementById('authBtn').textContent = isLogin ? 'Login' : 'Sign Up';
+      document.getElementById('toggleLink').textContent = isLogin 
+        ? "Don't have an account? Sign up" 
+        : 'Already have an account? Login';
+    };
+    
+    document.getElementById('authBtn').onclick = async () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('error');
+      
+      errorEl.textContent = '';
+      
+      if (!email || !password) {
+        errorEl.textContent = 'Please fill all fields';
+        return;
+      }
+      
+      const { data, error } = isLogin
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
+      
+      if (error) {
+        errorEl.textContent = error.message;
+      } else {
+        chrome.storage.local.set({ 
+          session: data.session,
+          userId: data.user.id 
+        });
+        window.location.href = 'popup.html';
+      }
+    };
+  </script>
+</body>
+</html>
