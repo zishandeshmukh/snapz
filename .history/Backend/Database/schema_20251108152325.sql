@@ -19,24 +19,15 @@ CREATE TABLE public.content_documents (
     -- === THIS IS THE 3rd (AND CORRECTED) FTS COLUMN ===
     --
    -- This is the OLD, incorrect FTS column
-   -- This is the NEW, corrected FTS column
-fts TSVECTOR GENERATED ALWAYS AS (
+       fts TSVECTOR GENERATED ALWAYS AS (
     -- Combine tsvector for title
     to_tsvector('simple', coalesce(metadata->>'title', '')) ||
     -- Combine tsvector for summary
     to_tsvector('simple', coalesce(metadata->>'summary', '')) ||
-    
-    -- !!! ADD THIS LINE TO INCLUDE THE RAW TEXT IN THE SEARCH !!!
-    to_tsvector('simple', coalesce(metadata->>'raw_text', '')) || 
-    
     -- Combine tsvector for keywords
     to_tsvector('simple',
         CASE
-            -- Check if 'keywords' is a valid JSON array
-            WHEN jsonb_typeof(metadata -> 'keywords') = 'array'
-            -- If yes, cast to text and strip json characters ([, ], ", commas)
-            THEN regexp_replace((metadata -> 'keywords')::text, '[\[\]",]', '', 'g')
-            -- Otherwise, use an empty string
+            -- ... (keywords logic) ...
             ELSE ''
         END
     )

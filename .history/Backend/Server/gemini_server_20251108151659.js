@@ -191,8 +191,7 @@ async function processBatch() {
       }
     }));
 
-    // const { error: dbError } = await supabase.from('content_documents').insert(inserts);
-    const { error: dbError } = await req.supabase.from('content_documents').insert(inserts);
+    const { error: dbError } = await supabase.from('content_documents').insert(inserts);
     if (dbError) throw dbError;
 
     // Send responses
