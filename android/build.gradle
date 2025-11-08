@@ -23,15 +23,23 @@
 // apply plugin: "expo-root-project"
 // apply plugin: "com.facebook.react.rootproject"
 buildscript {
-    ext.kotlin_version = '2.0.21'          // main Kotlin
-    ext.compose_version = '2.0.21'        // Compose compiler
+    ext {
+        kotlinVersion = '2.0.21'
+        composeVersion = '2.0.21'          // Compose compiler
+        buildToolsVersion = findProperty('android.buildToolsVersion') ?: '35.0.0'
+        minSdkVersion = findProperty('android.minSdkVersion') ?: 24
+        compileSdkVersion = findProperty('android.compileSdkVersion') ?: 35
+        targetSdkVersion = findProperty('android.targetSdkVersion') ?: 34
+        ndkVersion = findProperty('android.ndkVersion') ?: '26.1.10909125'
+    }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:$kotlin_version"
+        classpath 'com.android.tools.build:gradle:8.7.3'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+        classpath "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:$kotlinVersion"
     }
 }
 
@@ -40,7 +48,7 @@ allprojects {
         google()
         mavenCentral()
     }
-    // Force all Kotlin artefacts to 2.0.21
+    // Force every Kotlin artefact to 2.0.21
     configurations.all {
         resolutionStrategy.eachDependency { details ->
             if (details.requested.group == 'org.jetbrains.kotlin') {
