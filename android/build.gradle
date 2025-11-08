@@ -24,8 +24,7 @@
 // apply plugin: "com.facebook.react.rootproject"
 buildscript {
     ext {
-        kotlinVersion = '2.0.21'
-        composeVersion = '2.0.21'          // Compose compiler
+        kotlinVersion = '1.9.24'   // ← downgrade
         buildToolsVersion = findProperty('android.buildToolsVersion') ?: '35.0.0'
         minSdkVersion = findProperty('android.minSdkVersion') ?: 24
         compileSdkVersion = findProperty('android.compileSdkVersion') ?: 35
@@ -39,7 +38,6 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.7.3'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-        classpath "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:$kotlinVersion"
     }
 }
 
@@ -47,13 +45,5 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-    }
-    // Force every Kotlin artefact to 2.0.21
-    configurations.all {
-        resolutionStrategy.eachDependency { details ->
-            if (details.requested.group == 'org.jetbrains.kotlin') {
-                details.useVersion '2.0.21'
-            }
-        }
     }
 }
