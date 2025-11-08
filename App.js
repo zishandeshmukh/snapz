@@ -1,9 +1,9 @@
 // import 'react-native-url-polyfill/auto';
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Icon } from 'react-native-elements';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, TextInput, Button } from 'react-native';
 
 // Import your screens
 import HomeScreen from './screens/HomeScreen';
@@ -13,11 +13,41 @@ import SettingsScreen from './screens/SettingsScreen';
 
 // Import the new Auth components
 import { SupabaseProvider, useSupabase } from './context/SupabaseContext';
-// import { Auth } from '@supabase/auth-ui-react-native';
-import { Auth } from '@supabase/auth-ui-react';
+
 const Tab = createBottomTabNavigator();
 
-// This is your *existing* app layout, unchanged.
+// ---------- SIMPLE LOGIN SCREEN ----------
+function AuthScreen({ supabase }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  async function signIn() {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert(error.message);
+  }
+
+  return (
+    <View style={styles.authContainer}>
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+      <Button title="Sign In" onPress={signIn} />
+    </View>
+  );
+}
+
+// ---------- TAB NAVIGATOR (UNCHANGED) ----------
 function AppTabs() {
   return (
     <Tab.Navigator
@@ -48,7 +78,7 @@ function AppTabs() {
   );
 }
 
-// This new component decides to show Login or your App
+// ---------- ROOT CONTAINER ----------
 function AppRoot() {
   const { session, loading, supabase } = useSupabase();
 
@@ -61,22 +91,13 @@ function AppRoot() {
   }
 
   if (!session) {
-    return (
-      <View style={[styles.container, { padding: 20 }]}>
-        <Auth
-          supabaseClient={supabase}
-          providers={['google']} // Add any providers you enabled in Supabase
-          theme="dark"
-        />
-      </View>
-    );
+    return <AuthScreen supabase={supabase} />;
   }
 
-  // User is logged in, show the main app
   return <AppTabs />;
 }
 
-// The final export wraps everything in the Provider
+// ---------- APP WRAPPER ----------
 export default function App() {
   return (
     <SupabaseProvider>
@@ -87,11 +108,27 @@ export default function App() {
   );
 }
 
+// ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1c1c1c' // Match dark theme
-  }
+    backgroundColor: '#1c1c1c',
+  },
+  authContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+    width: '100%',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#444',
+    backgroundColor: '#222',
+    color: '#fff',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 12,
+  },
 });
