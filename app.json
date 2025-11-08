@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SnapMind",
-    "slug": "snapmind-mobile",
+    "slug": "snapmind",
     "scheme": "snapmind",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -72,7 +72,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "66a1442d-b498-4ff2-8bad-4ef2e9c3059d"
+        "projectId": "ace5743e-17c7-444d-b4df-38bf2ac50136"
       }
     },
     "sdkVersion": "54.0.0"
