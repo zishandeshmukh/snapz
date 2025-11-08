@@ -37,4 +37,4 @@ expoAutolinking.useExpoVersionCatalog()
 
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)
-apply from: new File(["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(), "../android/settings.gradle")
+apply from: new File(settingsDir, "../node_modules/expo/android/settings.gradle")

@@ -1,40 +1,30 @@
-node_modules/
-.expo/
-dist/
-npm-debug.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-.orig.
-web-build/
-.env
-.DS_Store. e x p o / 
- 
- . e x p o / 
- 
- # Node dependencies
+# Node dependencies
 node_modules/
 
 # Caches
 .expo/
 metro-cache/
 
-# API keys and secrets
-# (Even though constants.js is public, this is good practice)
-.env
-*.env
-
 # Build files
 dist/
 build/
+web-build/
+
+# API keys and secrets
+.env
+*.env
 
 # Log files
 *.log
-# Gradle / Android
-android/.gradle/
-android/build/
-android/app/build/
-*.lock
-*.log
+npm-debug.*
+
+# Keystore files
+*.jks
+*.p8
+*.p12
+*.key
+
+# Other
+*.mobileprovision
+.orig.
+.DS_Store
