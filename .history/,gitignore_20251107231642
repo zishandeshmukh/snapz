@@ -1,0 +1,9 @@
+# Ignore Node modules
+node_modules/
+
+# Ignore History folder
+.history/
+
+# Ignore environment files
+.env
+Backend/Server/.env

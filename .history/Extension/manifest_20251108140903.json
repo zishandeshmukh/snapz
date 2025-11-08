@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "SnapMind",
+  "version": "1.0.0",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "identity"
+  ],
+  "action": {
+    "default_popup": "auth.html",
+    "default_title": "SnapMind"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "oauth2": {
+    "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": ["openid", "email", "profile"]
+  }
+}

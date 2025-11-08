@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root { --bg: #09090b; --text: #fff; --muted: #a1a1aa; --accent: #fff; --border: #27272a; --error: #ef4444; }
+    body { width: 350px; height: 500px; background: var(--bg); color: var(--text); font-family: system-ui; margin: 0; padding: 24px; display: flex; flex-direction: column; justify-content: center; }
+    h1 { font-size: 24px; margin: 0 0 8px 0; font-weight: 700; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+    input { width: 100%; padding: 12px; margin: 8px 0; background: #1a1a1a; border: 1px solid var(--border); border-radius: 8px; color: white; font-size: 14px; transition: border 0.2s; }
+    input:focus { outline: none; border-color: var(--accent); }
+    button { width: 100%; padding: 12px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; margin-top: 16px; cursor: pointer; font-size: 14px; transition: opacity 0.2s; }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .link { color: var(--muted); text-align: center; margin-top: 16px; cursor: pointer; font-size: 13px; }
+    .link:hover { color: var(--accent); }
+    .error { color: var(--error); font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .success { color: #10b981; font-size: 12px; margin-top: 8px; }
+    .loading { text-align: center; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="authForm">
+    <h1 id="authTitle">Welcome Back</h1>
+    <div class="subtitle">Capture & recall your digital life</div>
+    <input type="email" id="email" placeholder="Email" autocomplete="email">
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+    <button id="authBtn">Login</button>
+    <div class="link" id="toggleLink">Don't have an account? Sign up</div>
+    <div class="error" id="error"></div>
+  </div>
+
+  <div id="loading" class="hidden">
+    <div class="loading">Loading...</div>
+  </div>
+
+  <script>
+    // Inline Supabase to avoid CSP issues
+    const supabaseClient = window.supabase?.createClient ? 
+      window.supabase.createClient('https://your-project.supabase.co', 'YOUR_ANON_KEY') :
+      null;
+
+    if (!supabaseClient) {
+      document.getElementById('error').textContent = 'Failed to load required libraries';
+    }
+
+    let isLogin = true;
+    
+    // Check if already logged in
+    chrome.storage.local.get(['session'], (result) => {
+      if (result.session) {
+        window.location.href = 'popup.html';
+      }
+    });
+
+    document.getElementById('toggleLink').onclick = () => {
+      isLogin = !isLogin;
+      document.getElementById('authTitle').textContent = isLogin ? 'Welcome Back' : 'Create Account';
+      document.getElementById('authBtn').textContent = isLogin ? 'Login' : 'Sign Up';
+      document.getElementById('toggleLink').textContent = isLogin 
+        ? "Don't have an account? Sign up" 
+        : 'Already have an account? Login';
+    };
+    
+    document.getElementById('authBtn').onclick = async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('error');
+      
+      errorEl.textContent = '';
+      
+      if (!email || !password) {
+        errorEl.textContent = 'Please fill all fields';
+        return;
+      }
+      
+      if (!supabaseClient) {
+        errorEl.textContent = 'Initialization error. Please reload.';
+        return;
+      }
+      
+      const button = document.getElementById('authBtn');
+      button.disabled = true;
+      
+      const { data, error } = isLogin
+        ? await supabaseClient.auth.signInWithPassword({ email, password })
+        : await supabaseClient.auth.signUp({ email, password });
+      
+      button.disabled = false;
+      
+      if (error) {
+        errorEl.textContent = error.message;
+      } else if (data.session) {
+        // Success
+        chrome.storage.local.set({ 
+          session: data.session,
+          userId: data.user.id 
+        });
+        window.location.href = 'popup.html';
+      } else {
+        // Signup confirmation
+        errorEl.className = 'success';
+        errorEl.textContent = 'Check your email for confirmation link';
+      }
+    };
+  </script>
+</body>
+</html>
