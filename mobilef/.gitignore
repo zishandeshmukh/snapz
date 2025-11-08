@@ -32,3 +32,10 @@ build/
 
 # Log files
 *.log
+# Gradle / Android
+android/.gradle/
+android/build/
+android/app/build/
+*.lock
+*.log
+/android
