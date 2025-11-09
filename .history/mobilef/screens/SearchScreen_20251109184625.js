@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, FlatList, ActivityIndicator, Touchab
 import { useSupabase } from '../context/SupabaseContext';
 import { searchDataFromBackend } from '../utils/shareUtils';
 import MemoryCard from '../components/MemoryCard';
-import { Ionicons } from '@expo/vector-icons';
+// import { Icon } from 'react-native-elements';
 
 const SearchScreen = () => {
   const [query, setQuery] = useState('');
@@ -20,6 +20,7 @@ const SearchScreen = () => {
     const token = getAuthToken();
 
     try {
+      // 1. Get IDs from backend
       const ids = await searchDataFromBackend(query, token);
 
       if (!ids || ids.length === 0) {
@@ -27,6 +28,7 @@ const SearchScreen = () => {
         return;
       }
 
+      // 2. Get full data for those IDs
       const { data, error } = await supabase
         .from('content_documents')
         .select('*')
@@ -56,7 +58,7 @@ const SearchScreen = () => {
           onSubmitEditing={handleSearch}
         />
         <TouchableOpacity onPress={handleSearch} style={styles.searchIcon}>
-          <Ionicons name="search" size={24} color="tomato" /> {/* ✅ FIXED */}
+          <Icon name="search" type="ionicon" color="tomato" />
         </TouchableOpacity>
       </View>
 

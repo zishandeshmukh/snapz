@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-
+import { Card } from 'react-native-elements';
+import { Icon } from 'react-native-elements';
 // Helper to format the date
 const formatDate = (dateString) => {
   if (!dateString) return 'Invalid date';
@@ -19,15 +20,16 @@ const MemoryCard = ({ memory }) => {
   const { metadata, created_at, source } = memory;
   const { title, summary, keywords, emotions } = metadata || {};
 
+  // Get the (M) or (W) tag, as requested
   const sourceTag = source === 'M' ? '(M)' : source === 'W' ? '(W)' : '';
 
   return (
-    <View style={[styles.card, styles.cardContainer]}>
+    <Card containerStyle={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>{title || 'Untitled Snap'}</Text>
         <Text style={styles.date}>{formatDate(created_at)} {sourceTag}</Text>
       </View>
-      <View style={styles.divider} />
+      <Card.Divider color="#333" />
       <Text style={styles.summary}>{summary || 'No summary available.'}</Text>
       
       {keywords && keywords.length > 0 && (
@@ -51,7 +53,7 @@ const MemoryCard = ({ memory }) => {
           ))}
         </View>
       )}
-    </View>
+    </Card>
   );
 };
 
@@ -61,14 +63,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 0,
     marginBottom: 15,
-  },
-  cardContainer: {
-    padding: 15,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#333',
-    marginVertical: 10,
   },
   header: {
     flexDirection: 'row',
@@ -80,13 +74,13 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
-    flex: 1,
+    flex: 1, // Allow title to take space
     marginRight: 5,
   },
   date: {
     color: '#999',
     fontSize: 12,
-    flexShrink: 0,
+    flexShrink: 0, // Prevent date from shrinking
   },
   summary: {
     color: '#CCC',
@@ -115,7 +109,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3a3a3a',
   },
   emotionTag: {
-    backgroundColor: '#004d40',
+    backgroundColor: '#004d40', // A teal color
   },
   tagText: {
     color: '#FFF',
