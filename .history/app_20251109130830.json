@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.snapmind.app",
-      "buildNumber": "1",
+      "buildNumber": "1.0.0",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "SnapMind needs access to save and share content",
         "NSUserActivityTypes": ["NSUserActivityTypeBrowsingWeb"]
@@ -41,6 +41,15 @@
     "plugins": [
       "expo-font",
       [
+  "expo-build-properties",
+  {
+    "android": {
+      "kotlinVersion": "2.0.21",
+      "composeCompilerVersion": "2.0.21"
+    }
+  }
+],
+      [
         "expo-share-intent",
         {
           "ios": {
@@ -57,20 +66,6 @@
               }
             ],
             "launchMode": "singleTask"
-          }
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "kotlinVersion": "1.9.24",
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
-            "minSdkVersion": 24
-          },
-          "ios": {
-            "deploymentTarget": "15.1"
           }
         }
       ]
