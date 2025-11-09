@@ -11,5 +11,8 @@
   "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0"
+  },
+  "devDependencies": {
+    "eas-cli": "^16.26.0"
   }
 }
