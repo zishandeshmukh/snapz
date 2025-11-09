@@ -1,18 +1,19 @@
 {
   "cli": {
-    "version": ">= 16.26.0",
-    "appVersionSource": "remote"
+    "version": ">= 9.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "projectDir": "mobilef"  
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "projectDir": "mobilef"  
     },
     "production": {
-      "autoIncrement": true
+      "projectDir": "mobilef"  
     }
   },
   "submit": {
