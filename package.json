@@ -13,6 +13,7 @@
     "@supabase/supabase-js": "^2.80.0"
   },
   "devDependencies": {
-    "eas-cli": "^16.26.0"
+    "eas-cli": "^16.26.0",
+    "patch-package": "^8.0.1"
   }
 }
