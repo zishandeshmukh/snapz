@@ -12,14 +12,18 @@
       "resizeMode": "contain",
       "backgroundColor": "#09090b"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.snapmind.app",
       "buildNumber": "1.0.0",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "SnapMind needs access to save and share content",
-        "NSUserActivityTypes": ["NSUserActivityTypeBrowsingWeb"]
+        "NSUserActivityTypes": [
+          "NSUserActivityTypeBrowsingWeb"
+        ]
       }
     },
     "android": {
@@ -57,6 +61,14 @@
               }
             ],
             "launchMode": "singleTask"
+          }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21"
           }
         }
       ]
