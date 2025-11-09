@@ -35,6 +35,7 @@
   },
   "cli": {
     "version": ">= 10.0.0",
-    "requireCommit": true
+    "requireCommit": true,
+    "appVersionSource": "remote"
   }
 }
