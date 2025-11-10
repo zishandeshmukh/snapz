@@ -1,0 +1,85 @@
+{
+  "expo": {
+    "name": "SnapMind",
+    "slug": "snapmind",
+    "scheme": "snapmind",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#09090b"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.snapmind.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "SnapMind needs access to save and share content",
+        "NSUserActivityTypes": ["NSUserActivityTypeBrowsingWeb"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#09090b"
+      },
+      "package": "com.snapmind.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-share-intent",
+        {
+          "ios": {
+            "activationRules": {
+              "NSExtensionActivationSupportsText": true,
+              "NSExtensionActivationSupportsWebURLWithMaxCount": 1
+            }
+          },
+          "android": {
+            "intentFilters": [
+              {
+                "action": "SEND",
+                "mimeType": "text/plain"
+              }
+            ],
+            "launchMode": "singleTask"
+          }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.24",
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "minSdkVersion": 24
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ace5743e-17c7-444d-b4df-38bf2ac50136"
+      }
+    },
+    "sdkVersion": "54.0.0"
+  }
+}
