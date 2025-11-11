@@ -1,3 +1,1043 @@
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const supabase = createClient(
+  'https://your-project.supabase.co',
+  'YOUR_ANON_KEY' // Use anon key only
+);
+
+let isLoginMode = true;
+
+document.getElementById('toggleLink').addEventListener('click', () => {
+  isLoginMode = !isLoginMode;
+  document.getElementById('title').textContent = isLoginMode ? 'Welcome Back' : 'Create Account';
+  document.getElementById('authBtn').textContent = isLoginMode ? 'Login' : 'Sign Up';
+  document.getElementById('toggleLink').textContent = isLoginMode 
+    ? "Don't have an account? Sign up" 
+    : 'Already have an account? Login';
+});
+
+document.getElementById('authBtn').addEventListener('click', async () => {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const errorDiv = document.getElementById('error');
+  
+  errorDiv.textContent = '';
+  
+  if (!email || !password) {
+    errorDiv.textContent = 'Please fill all fields';
+    return;
+  }
+
+  const { data, error } = isLoginMode
+    ? await supabase.auth.signInWithPassword({ email, password })
+    : await supabase.auth.signUp({ email, password });
+
+  if (error) {
+    errorDiv.textContent = error.message;
+  } else {
+    // Save session to chrome.storage
+    chrome.storage.local.set({ 
+      supabaseSession: data.session,
+      userId: data.user.id 
+    });
+    // Redirect to main popup
+    window.location.href = 'popup.html';
+  }
+});
+// Service worker for extension lifecycle management
+console.log('SnapMind background service worker started');
+
+// Keep extension alive
+chrome.runtime.onStartup.addListener(() => {
+  console.log('Extension started');
+});
+
+// Handle authentication state
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.session) {
+    if (!changes.session.newValue) {
+      // Session cleared - redirect to auth
+      chrome.action.setPopup({ popup: 'auth.html' });
+    } else {
+      chrome.action.setPopup({ popup: 'popup.html' });
+    }
+  }
+});
+
+// Set initial popup based on auth state
+chrome.storage.local.get(['session'], (result) => {
+  chrome.action.setPopup({ 
+    popup: result.session ? 'popup.html' : 'auth.html' 
+  });
+});
+// --- Main Capture Logic ---
+// This function contains all the rules for different websites.
+function runContentCapture() {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    const currentUrl = window.location.href;
+    let pageData = {};
+
+    // --- Social Media ---
+
+    // 1. LinkedIn
+    if (hostname.includes("linkedin.com")) {
+        // LinkedIn Profile Page
+        if (pathname.includes("/in/")) {
+            console.log("LinkedIn Profile page detected.");
+            const nameElement = document.querySelector('h1');
+            const headlineElement = document.querySelector('.text-body-medium.break-words');
+            const aboutSection = document.querySelector('#about + div + div span[aria-hidden="true"]');
+            pageData = {
+                type: "linkedin_profile",
+                title: nameElement ? nameElement.innerText.trim() : document.title,
+                url: currentUrl,
+                textContent: `${nameElement?.innerText.trim()}\n${headlineElement?.innerText.trim()}\n\nAbout:\n${aboutSection?.innerText.trim()}`
+            };
+        // LinkedIn Feed
+        } else {
+            console.log("LinkedIn Feed detected.");
+            const postElements = document.querySelectorAll("div[data-urn^='urn:li:share:'], div[data-urn^='urn:li:activity:']");
+            const posts = [];
+            postElements.forEach(post => {
+                const textEl = post.querySelector('.update-components-text');
+                const authorEl = post.querySelector('.update-components-actor__name span[aria-hidden="true"]');
+                const linkEl = post.querySelector('a.update-components-actor__sub-description-link');
+                if (textEl) posts.push({ textContent: textEl.innerText.trim(), postLink: linkEl?.href, author: authorEl?.innerText.trim() });
+            });
+            pageData = { type: 'linkedin_feed', title: document.title, url: currentUrl, posts };
+        }
+    }
+
+    // 2. X.com (Twitter)
+    else if (hostname.includes("x.com")) {
+        console.log("X.com timeline detected.");
+        const postElements = document.querySelectorAll("article");
+        const posts = [];
+        postElements.forEach(post => {
+            const text = post.innerText.trim();
+            const linkEl = post.querySelector('a[href*="/status/"]');
+            if (text) posts.push({ textContent: text, postLink: linkEl?.href });
+        });
+        pageData = { type: 'twitter_timeline', title: document.title, url: currentUrl, posts };
+    }
+
+    // 3. Instagram
+    else if (hostname.includes("instagram.com")) {
+        console.log("Instagram page detected.");
+        // A simple scrape for the main feed
+        const postElements = document.querySelectorAll("article");
+        const posts = [];
+        postElements.forEach(post => {
+            const authorEl = post.querySelector("header a");
+            const textEl = post.querySelector("h1, div[role='button'] ~ div span");
+            const linkEl = post.querySelector("a[href*='/p/'], a[href*='/reel/']");
+            if (authorEl && textEl) posts.push({ author: authorEl.innerText, textContent: textEl.innerText, postLink: linkEl?.href });
+        });
+        pageData = { type: 'instagram_feed', title: document.title, url: currentUrl, posts };
+    }
+
+    // --- Forums & Q&A ---
+
+    // 4. Reddit
+    else if (hostname.includes("reddit.com")) {
+        // Individual Reddit post
+        if (pathname.includes("/comments/")) {
+            console.log("Reddit post page detected.");
+            const postContent = document.querySelector('div[data-testid="post-content"]')?.innerText.trim() || '';
+            const comments = [];
+            document.querySelectorAll('div[id^="comment-"]').forEach(comment => {
+                const author = comment.querySelector('a[data-testid="comment_author_link"]')?.innerText;
+                const text = comment.querySelector('div[data-testid="comment"]')?.innerText;
+                if(author && text) comments.push(`${author}: ${text}`);
+            });
+            pageData = { type: 'reddit_post', title: document.title, textContent: `${postContent}\n\nTop Comments:\n${comments.slice(0, 5).join('\n---\n')}` };
+        // Reddit Feed
+        } else {
+            console.log("Reddit feed detected.");
+            const postElements = document.querySelectorAll('div[data-testid="post-container"]');
+            const posts = [];
+            postElements.forEach(post => {
+                const titleEl = post.querySelector('h3, [data-adclicklocation="title"]');
+                const linkEl = post.querySelector('a[data-adclicklocation="title"]');
+                if (titleEl) posts.push({ headline: titleEl.innerText, link: linkEl?.href });
+            });
+            pageData = { type: 'reddit_feed', title: document.title, url: currentUrl, posts };
+        }
+    }
+    
+    // 5. Quora
+    else if (hostname.includes("quora.com")) {
+        console.log("Quora page detected.");
+        const question = document.querySelector('.qu-display--block')?.innerText || document.title;
+        const answers = [];
+        document.querySelectorAll('.qu-user-written-content').forEach(answer => answers.push(answer.innerText));
+        pageData = { type: 'quora_question', title: question, textContent: `Question: ${question}\n\nTop Answers:\n${answers.slice(0, 3).join('\n\n---\n\n')}` };
+    }
+
+    // --- Media ---
+
+    // 6. YouTube
+    else if (hostname.includes("youtube.com") && pathname.includes("/watch")) {
+        console.log("YouTube page detected.");
+        pageData = { type: "youtube_video", title: document.title, url: currentUrl };
+    }
+    
+    // --- Documents ---
+    
+    // 7. Local PDF Files
+    else if (currentUrl.startsWith("file://") && currentUrl.toLowerCase().endsWith(".pdf")) {
+        console.log("Local PDF file detected.");
+        pageData = { type: "local_pdf_file", title: pathname.split("/").pop(), url: currentUrl, textContent: "Local PDF file detected. For analysis, upload to the main app." };
+    }
+
+    // --- GENERALIZED RULE FOR NEWS & ARTICLES (using Readability.js) ---
+    else {
+        try {
+            const documentClone = document.cloneNode(true);
+            const reader = new Readability(documentClone);
+            const article = reader.parse();
+
+            if (article && article.textContent.length > 200) {
+                console.log("Generalized article detected by Readability.");
+                pageData = {
+                    type: 'article',
+                    title: article.title,
+                    url: currentUrl,
+                    textContent: article.textContent.trim()
+                };
+            } else {
+                // Final fallback if Readability fails or content is too short
+                console.log("Generic page detected. Capturing all visible text.");
+                pageData = { type: "generic", title: document.title, url: currentUrl, textContent: document.body.innerText.trim() };
+            }
+        } catch (e) {
+             console.error("Error running Readability, using generic fallback.", e);
+             pageData = { type: "generic", title: document.title, url: currentUrl, textContent: document.body.innerText.trim() };
+        }
+    }
+    
+    // Send the captured data to the backend
+    sendDataToBackend(pageData);
+}
+
+// --- Backend Sender Function ---
+async function sendDataToBackend(data) {
+    const SERVER_URL = "http://localhost:3001/receive_data";
+    let rawTextToSend = "";
+
+    if (data.posts && data.posts.length > 0) {
+        const allText = data.posts.map(p => {
+            if (p.headline) return `${p.headline}\n${p.link}`;
+            if (p.textContent) return `${p.textContent}\n${p.postLink}`;
+            return "";
+        }).join("\n\n---\n\n");
+        rawTextToSend = allText;
+    } else if (data.textContent) {
+        rawTextToSend = data.textContent;
+    } else if (data.type === "youtube_video") {
+        rawTextToSend = `YouTube Video Title: ${data.title}\nURL: ${data.url}`;
+    } else {
+        console.log("No text content to send for data type:", data.type);
+        return;
+    }
+
+    console.log("--- Sending Raw Text to Server ---");
+
+    try {
+        const response = await fetch(SERVER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: rawTextToSend
+        });
+        if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
+        const structuredData = await response.json();
+        console.log("--- Received Structured Data from Server ---", structuredData);
+    } catch (error) {
+        console.error("Failed to send data to server:", error);
+    }
+}
+
+// --- SCRIPT EXECUTION LOGIC ---
+// This part decides when to run the capture function.
+runContentCapture();
+// --- Waiter Function ---
+function waitForElement(selector, callback) {
+    const maxChecks = 100; // Wait for max 10 seconds (100 × 100ms)
+    let checks = 0;
+    const interval = setInterval(() => {
+        const element = document.querySelector(selector);
+        if (element) {
+            clearInterval(interval);
+            callback();
+            return;
+        }
+        checks++;
+        if (checks >= maxChecks) {
+            clearInterval(interval);
+            console.log("Element did not appear in time. Running fallback.");
+            callback();
+        }
+    }, 100);
+}
+
+// --- Instagram Interaction Tracker ---
+function setupInstagramInteractionTracker() {
+    console.log("Instagram interaction tracker activated.");
+
+    function capturePostContext(postElement) {
+        try {
+            const author = postElement.querySelector("header a")?.innerText || "Unknown Author";
+            const link = postElement.querySelector("a[href*='/p/']")?.href || window.location.href;
+            const text = postElement.querySelector("div[role='button'] ~ div")?.innerText || "";
+
+            const postData = {
+                type: "instagram_interaction",
+                author,
+                postLink: link,
+                textContent: text,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log("Captured Instagram interaction:", postData);
+
+            fetch("http://localhost:3001/receive_data", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(postData)
+            });
+        } catch (err) {
+            console.error("Error capturing Instagram post context:", err);
+        }
+    }
+
+    // Observe new posts (infinite scroll)
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1 && node.tagName === "ARTICLE") {
+                    const likeButton = node.querySelector("svg[aria-label='Like']");
+                    if (likeButton) {
+                        likeButton.addEventListener("click", () => capturePostContext(node));
+                    }
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Initial scan
+    document.querySelectorAll("article").forEach(article => {
+        const likeButton = article.querySelector("svg[aria-label='Like']");
+        if (likeButton) {
+            likeButton.addEventListener("click", () => capturePostContext(article));
+        }
+    });
+}
+
+// --- Main Capture Logic ---
+function runContentCapture() {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    const currentUrl = window.location.href;
+    let pageData = {};
+
+    // --- 1. X.com (Twitter) ---
+    if (hostname.includes("x.com")) {
+        console.log("X.com timeline detected. Capturing posts.");
+        const postElements = document.querySelectorAll("article");
+        const posts = [];
+
+        postElements.forEach(postElement => {
+            const postText = postElement.innerText.trim();
+            const linkElement = postElement.querySelector('a[href*="/status/"]');
+            const postLink = linkElement ? linkElement.href : null;
+            const videoElement = postElement.querySelector("video");
+            const videoSrc = videoElement ? videoElement.src : null;
+
+            if (postText) {
+                posts.push({
+                    textContent: postText,
+                    postLink: postLink,
+                    videoSrc: videoSrc
+                });
+            }
+        });
+
+        pageData = {
+            type: "twitter_timeline",
+            title: document.title,
+            url: currentUrl,
+            posts: posts
+        };
+        sendDataToBackend(pageData);
+
+    // --- 2. YouTube Video ---
+    } else if (hostname.includes("youtube.com") && pathname.includes("/watch")) {
+        console.log("YouTube page detected. Capturing video URL.");
+        pageData = {
+            type: "youtube_video",
+            title: document.title,
+            url: currentUrl
+        };
+        sendDataToBackend(pageData);
+
+    // --- 3. Instagram ---
+    } else if (hostname.includes("instagram.com")) {
+        console.log("Instagram page detected. Interaction tracking enabled.");
+        setupInstagramInteractionTracker();
+        return; // Stop further scraping for Instagram
+
+    // --- 4. Indian Express ---
+    } else if (hostname.includes("indianexpress.com")) {
+        if (pathname.includes("/article/")) {
+            console.log("Indian Express ARTICLE page detected.");
+            try {
+                const mainContainer = document.querySelector("div#pcl-full-content, div.full-details");
+                const articleBody = mainContainer ? mainContainer.querySelector("div.story_details") : null;
+
+                if (articleBody) {
+                    const textContent = articleBody.innerText.trim();
+                    const allImages = mainContainer.querySelectorAll("img");
+                    const imageUrls = Array.from(allImages)
+                        .map(img => img.src)
+                        .filter(src => src && /\.(jpg|jpeg|png)$/i.test(src));
+
+                    pageData = {
+                        type: "indian_express_article",
+                        title: document.title,
+                        url: currentUrl,
+                        textContent: textContent,
+                        imageUrls: imageUrls
+                    };
+                } else {
+                    pageData = {
+                        type: "generic",
+                        title: document.title,
+                        url: currentUrl,
+                        textContent: document.body.innerText.trim()
+                    };
+                }
+                sendDataToBackend(pageData);
+            } catch (error) {
+                console.error("Error parsing Indian Express article:", error);
+            }
+        } else {
+            console.log("Indian Express HOMEPAGE detected.");
+            const storyElements = document.querySelectorAll("div.top-news-premium div.news, div.other-news");
+            const stories = [];
+
+            storyElements.forEach(storyElement => {
+                const linkElement = storyElement.querySelector("a");
+                const headlineElement = storyElement.querySelector("h3, .title");
+                if (linkElement && headlineElement) {
+                    stories.push({
+                        headline: headlineElement.innerText.trim(),
+                        link: linkElement.href
+                    });
+                }
+            });
+
+            pageData = {
+                type: "indian_express_homepage",
+                title: document.title,
+                url: currentUrl,
+                stories: stories
+            };
+            sendDataToBackend(pageData);
+        }
+
+    // --- 5. Local PDF Files ---
+    } else if (currentUrl.startsWith("file://") && currentUrl.toLowerCase().endsWith(".pdf")) {
+        console.log("Local PDF file detected.");
+        pageData = {
+            type: "local_pdf_file",
+            title: pathname.split("/").pop(),
+            url: currentUrl,
+            message: "To summarize this PDF, please upload it to the application."
+        };
+        sendDataToBackend(pageData);
+        return;
+
+    // --- 6. Generic Articles or Other Pages ---
+    } else {
+        const articleElement = document.querySelector("article, [role='main'], #main, #content");
+        if (articleElement) {
+            console.log("Article-like page detected. Capturing main content.");
+            pageData = {
+                type: "article",
+                title: document.title,
+                url: currentUrl,
+                textContent: articleElement.innerText.trim()
+            };
+        } else {
+            console.log("Generic page detected. Capturing all visible text.");
+            pageData = {
+                type: "generic",
+                title: document.title,
+                url: currentUrl,
+                textContent: document.body.innerText.trim()
+            };
+        }
+        sendDataToBackend(pageData);
+    }
+}
+
+// --- Backend Sender Function ---
+async function sendDataToBackend(data) {
+    const SERVER_URL = "http://localhost:3001/receive_data";
+    let rawTextToSend = "";
+console.log(data)
+    if (data.posts && data.posts.length > 0) {
+        const allText = data.posts.map(p => {
+            if (p.headline) return `${p.headline}\n${p.link}`;
+            if (p.textContent) return `${p.textContent}\n${p.postLink}`;
+            return "";
+        }).join("\n\n---\n\n");
+        rawTextToSend = allText;
+
+    } else if (data.textContent) {
+        rawTextToSend = data.textContent;
+
+    } else if (data.type === "youtube_video") {
+        rawTextToSend = `YouTube Video Title: ${data.title}\nURL: ${data.url}`;
+
+    } else {
+        console.log("No text content found to send to the backend for data type:", data.type);
+        return;
+    }
+
+    console.log("--- Sending Raw Text to Server ---");
+
+    try {
+        const response = await fetch(SERVER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: rawTextToSend
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const structuredDataFromServer = await response.json();
+        console.log("--- Received Structured Data from Server ---");
+        console.log(structuredDataFromServer);
+    } catch (error) {
+        console.error("Failed to send data to server:", error);
+    }
+}
+
+// --- SCRIPT EXECUTION LOGIC ---
+const hostname = window.location.hostname;
+const pathname = window.location.pathname;
+
+if (hostname.includes("indianexpress.com") && pathname.includes("/article/")) {
+    waitForElement("div.story_details", runContentCapture);
+} else {
+    runContentCapture();
+}
+// function runContentCapture() {
+//     const hostname = window.location.hostname;
+//     const pathname = window.location.pathname;
+//     const currentUrl = window.location.href;
+//     let pageData = {};
+
+//     // --- Social Media ---
+
+//     // 1. LinkedIn
+//     if (hostname.includes("linkedin.com")) {
+//         // LinkedIn Profile Page
+//         if (pathname.includes("/in/")) {
+//             console.log("LinkedIn Profile page detected.");
+//             const nameElement = document.querySelector('h1');
+//             const headlineElement = document.querySelector('.text-body-medium.break-words');
+//             const aboutSection = document.querySelector('#about + div + div span[aria-hidden="true"]');
+//             pageData = {
+//                 type: "linkedin_profile",
+//                 title: nameElement ? nameElement.innerText.trim() : document.title,
+//                 url: currentUrl,
+//                 textContent: `${nameElement?.innerText.trim()}\n${headlineElement?.innerText.trim()}\n\nAbout:\n${aboutSection?.innerText.trim()}`
+//             };
+//         // LinkedIn Feed
+//         } else {
+//             console.log("LinkedIn Feed detected.");
+//             const postElements = document.querySelectorAll("div[data-urn^='urn:li:share:'], div[data-urn^='urn:li:activity:']");
+//             const posts = [];
+//             postElements.forEach(post => {
+//                 const textEl = post.querySelector('.update-components-text');
+//                 const authorEl = post.querySelector('.update-components-actor__name span[aria-hidden="true"]');
+//                 const linkEl = post.querySelector('a.update-components-actor__sub-description-link');
+//                 if (textEl) posts.push({ textContent: textEl.innerText.trim(), postLink: linkEl?.href, author: authorEl?.innerText.trim() });
+//             });
+//             pageData = { type: 'linkedin_feed', title: document.title, url: currentUrl, posts };
+//         }
+//     }
+
+//     // 2. X.com (Twitter)
+//     else if (hostname.includes("x.com")) {
+//         console.log("X.com timeline detected.");
+//         const postElements = document.querySelectorAll("article");
+//         const posts = [];
+//         postElements.forEach(post => {
+//             const text = post.innerText.trim();
+//             const linkEl = post.querySelector('a[href*="/status/"]');
+//             if (text) posts.push({ textContent: text, postLink: linkEl?.href });
+//         });
+//         pageData = { type: 'twitter_timeline', title: document.title, url: currentUrl, posts };
+//     }
+
+//     // 3. Instagram
+//     else if (hostname.includes("instagram.com")) {
+//         console.log("Instagram page detected.");
+//         const postElements = document.querySelectorAll("article");
+//         const posts = [];
+//         postElements.forEach(post => {
+//             const authorEl = post.querySelector("header a");
+//             const textEl = post.querySelector("h1, div[role='button'] ~ div span");
+//             const linkEl = post.querySelector("a[href*='/p/'], a[href*='/reel/']");
+//             if (authorEl && textEl) posts.push({ author: authorEl.innerText, textContent: textEl.innerText, postLink: linkEl?.href });
+//         });
+//         pageData = { type: 'instagram_feed', title: document.title, url: currentUrl, posts };
+//     }
+//     // --- Forums & Q&A ---
+
+//     // 4. Reddit
+//     else if (hostname.includes("reddit.com")) {
+//         // Individual Reddit post
+//         if (pathname.includes("/comments/")) {
+//             console.log("Reddit post page detected.");
+//             const postContent = document.querySelector('div[data-testid="post-content"]')?.innerText.trim() || '';
+//             const comments = [];
+//             document.querySelectorAll('div[id^="comment-"]').forEach(comment => {
+//                 const author = comment.querySelector('a[data-testid="comment_author_link"]')?.innerText;
+//                 const text = comment.querySelector('div[data-testid="comment"]')?.innerText;
+//                 if(author && text) comments.push(`${author}: ${text}`);
+//             });
+//             pageData = { type: 'reddit_post', title: document.title, textContent: `${postContent}\n\nTop Comments:\n${comments.slice(0, 5).join('\n---\n')}` };
+//         // Reddit Feed
+//         } else {
+//             console.log("Reddit feed detected.");
+//             const postElements = document.querySelectorAll('div[data-testid="post-container"]');
+//             const posts = [];
+//             postElements.forEach(post => {
+//                 const titleEl = post.querySelector('h3, [data-adclicklocation="title"]');
+//                 const linkEl = post.querySelector('a[data-adclicklocation="title"]');
+//                 if (titleEl) posts.push({ headline: titleEl.innerText, link: linkEl?.href });
+//             });
+//             pageData = { type: 'reddit_feed', title: document.title, url: currentUrl, posts };
+//         }
+//     }
+    
+//     // 5. Quora
+//     else if (hostname.includes("quora.com")) {
+//         console.log("Quora page detected.");
+//         const question = document.querySelector('.qu-display--block')?.innerText || document.title;
+//         const answers = [];
+//         document.querySelectorAll('.qu-user-written-content').forEach(answer => answers.push(answer.innerText));
+//         pageData = { type: 'quora_question', title: question, textContent: `Question: ${question}\n\nTop Answers:\n${answers.slice(0, 3).join('\n\n---\n\n')}` };
+//     }
+
+//     // --- Media ---
+//   // 6. YouTube
+//     else if (hostname.includes("youtube.com") && pathname.includes("/watch")) {
+//         console.log("YouTube page detected.");
+//         pageData = { type: "youtube_video", title: document.title, url: currentUrl };
+//     }
+    
+//     // --- Documents ---
+    
+//     // 7. Local PDF Files
+//     else if (currentUrl.startsWith("file://") && currentUrl.toLowerCase().endsWith(".pdf")) {
+//         console.log("Local PDF file detected.");
+//         pageData = { type: "local_pdf_file", title: pathname.split("/").pop(), url: currentUrl, textContent: "Local PDF file detected. For analysis, upload to the main app." };
+//     }
+
+//     // --- GENERALIZED RULE FOR NEWS & ARTICLES (using Readability.js) ---
+//     else {
+//         try {
+//             const documentClone = document.cloneNode(true);
+//             const reader = new Readability(documentClone);
+//             const article = reader.parse();
+
+//             if (article && article.textContent.length > 200) {
+//                 console.log("Generalized article detected by Readability.");
+//                 pageData = {
+//                     type: 'article',
+//                     title: article.title,
+//                     url: currentUrl,
+//                     textContent: article.textContent.trim()
+//                 };
+//             } else {
+//                 console.log("Generic page detected. Capturing all visible text.");
+//                 pageData = { type: "generic", title: document.title, url: currentUrl, textContent: document.body.innerText.trim() };
+//             }
+//         } catch (e) {
+//              console.error("Error running Readability, using generic fallback.", e);
+//              pageData = { type: "generic", title: document.title, url: currentUrl, textContent: document.body.innerText.trim() };
+//         }
+//     }
+    
+//     // Send the captured data to the backend
+//     sendDataToBackend(pageData);
+// }
+
+// // --- Backend Sender Function (UPDATED) ---
+// async function sendDataToBackend(data) {
+//     const SERVER_URL = "http://localhost:3001/receive_data";
+//     let rawTextToSend = "";
+
+//     // --- THIS IS THE KEY CHANGE ---
+//     // Add the main URL to the top of the text to give the AI a clear signal.
+//     if (data.url) {
+//         rawTextToSend += `Source URL: ${data.url}\n\n`;
+//     }
+
+//     // This part of the logic appends the rest of the text content
+//     if (data.posts && data.posts.length > 0) {
+//         const allText = data.posts.map(p => {
+//             if (p.headline) return `${p.headline}\n${p.link || ''}`;
+//             if (p.textContent) return `${p.textContent}\n${p.postLink || ''}`;
+//             return "";
+//         }).join("\n\n---\n\n");
+//         rawTextToSend += allText;
+//     } else if (data.textContent) {
+//         rawTextToSend += data.textContent;
+//     } else if (data.type === "youtube_video") {
+//         rawTextToSend += `YouTube Video Title: ${data.title}`;
+//     } else {
+//         console.log("No text content to send for data type:", data.type);
+//         return;
+//     }
+
+//     console.log("--- Sending Raw Text to Server ---");
+
+//     try {
+//         const response = await fetch(SERVER_URL, {
+//             method: "POST",
+//             headers: { "Content-Type": "text/plain" },
+//             body: rawTextToSend
+//         });
+//         if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
+//         const structuredData = await response.json();
+//         console.log("--- Received Structured Data from Server ---", structuredData);
+//     } catch (error) {
+//         console.error("Failed to send data to server:", error);
+//     }
+// }
+
+// // --- SCRIPT EXECUTION LOGIC ---
+// runContentCapture();// SnapMind Content Scraper v2 - Hybrid Architecture
+
+console.log('SnapMind: Advanced content scraper loaded');
+
+// Your original platform-specific logic - preserved
+function runAdvancedScraping() {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    const currentUrl = window.location.href;
+    let metadata = {
+        type: "generic",
+        title: document.title,
+        url: currentUrl,
+        textContent: ""
+    };
+
+    // --- Social Media ---
+
+    // 1. LinkedIn
+    if (hostname.includes("linkedin.com")) {
+        if (pathname.includes("/in/")) {
+            const nameElement = document.querySelector('h1');
+            const headlineElement = document.querySelector('.text-body-medium.break-words');
+            const aboutSection = document.querySelector('#about + div + div span[aria-hidden="true"]');
+            metadata = {
+                type: "linkedin_profile",
+                title: nameElement ? nameElement.innerText.trim() : document.title,
+                url: currentUrl,
+                textContent: `${nameElement?.innerText.trim()}\n${headlineElement?.innerText.trim()}\n\nAbout:\n${aboutSection?.innerText.trim()}`.substring(0, 2000)
+            };
+        } else {
+            const postElements = document.querySelectorAll("div[data-urn^='urn:li:share:'], div[data-urn^='urn:li:activity:']");
+            const posts = Array.from(postElements).slice(0, 3).map(post => {
+                const textEl = post.querySelector('.update-components-text');
+                const authorEl = post.querySelector('.update-components-actor__name span[aria-hidden="true"]');
+                const linkEl = post.querySelector('a.update-components-actor__sub-description-link');
+                return textEl?.innerText.trim();
+            }).filter(Boolean);
+            metadata = { type: 'linkedin_feed', title: document.title, url: currentUrl, textContent: posts.join('\n\n---\n\n') };
+        }
+    }
+
+    // 2. X.com (Twitter)
+    else if (hostname.includes("x.com")) {
+        const posts = Array.from(document.querySelectorAll("article")).slice(0, 3).map(post => {
+            const text = post.innerText.trim();
+            return text.length > 50 ? text.substring(0, 500) : null;
+        }).filter(Boolean);
+        metadata = { type: 'twitter_timeline', title: document.title, url: currentUrl, textContent: posts.join('\n\n---\n\n') };
+    }
+
+    // 3. Instagram
+    else if (hostname.includes("instagram.com")) {
+        const posts = Array.from(document.querySelectorAll("article")).slice(0, 3).map(post => {
+            const authorEl = post.querySelector("header a");
+            const textEl = post.querySelector("h1, div[role='button'] ~ div span");
+            return textEl?.innerText.trim();
+        }).filter(Boolean);
+        metadata = { type: 'instagram_feed', title: document.title, url: currentUrl, textContent: posts.join('\n\n---\n\n') };
+    }
+
+    // 4. Reddit
+    else if (hostname.includes("reddit.com")) {
+        if (pathname.includes("/comments/")) {
+            const postContent = document.querySelector('div[data-testid="post-content"]')?.innerText.trim() || '';
+            metadata = { type: 'reddit_post', title: document.title, textContent: postContent.substring(0, 2000) };
+        } else {
+            const posts = Array.from(document.querySelectorAll('div[data-testid="post-container"]')).slice(0, 5).map(post => {
+                return post.querySelector('h3')?.innerText.trim();
+            }).filter(Boolean);
+            metadata = { type: 'reddit_feed', title: document.title, url: currentUrl, textContent: posts.join('\n\n') };
+        }
+    }
+
+    // 5. Quora
+    else if (hostname.includes("quora.com")) {
+        const question = document.querySelector('.qu-display--block')?.innerText || document.title;
+        metadata = { type: 'quora_question', title: question, textContent: question.substring(0, 2000) };
+    }
+
+    // 6. YouTube
+    else if (hostname.includes("youtube.com") && pathname.includes("/watch")) {
+        metadata = { type: "youtube_video", title: document.title, url: currentUrl, textContent: `YouTube Video: ${document.title}` };
+    }
+
+    // 7. PDF Files
+    else if (currentUrl.startsWith("file://") && currentUrl.toLowerCase().endsWith(".pdf")) {
+        metadata = { type: "local_pdf_file", title: pathname.split("/").pop(), url: currentUrl, textContent: "Local PDF detected" };
+    }
+
+    // 8. Generic Article (using Readability fallback)
+    else {
+        const textContent = document.body.innerText
+          .replace(/\s+/g, ' ')
+          .substring(0, 2000);
+        metadata = { type: "generic", title: document.title, url: currentUrl, textContent };
+    }
+
+    return metadata;
+}
+
+// --- NEW: Message Listener for Popup ---
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'getPageContent') {
+        try {
+            const metadata = runAdvancedScraping();
+            
+            // Add user's selection if present
+            const selection = window.getSelection().toString().trim();
+            if (selection && selection.length > 50) {
+                metadata.textContent = `SELECTED TEXT:\n${selection}\n\nFULL PAGE:\n${metadata.textContent}`;
+            }
+            
+            sendResponse({ success: true, metadata });
+        } catch (error) {
+            console.error('Scraping error:', error);
+            sendResponse({ success: false, error: error.message });
+        }
+    }
+});
+// SnapMind Popup Controller - Advanced Scraping Integration
+
+// Supabase client setup
+const supabaseClient = window.supabase?.createClient ?
+  window.supabase.createClient(
+    'https://your-project.supabase.co',
+    'YOUR_ANON_KEY'
+  ) : null;
+
+// Backend URL
+const BACKEND_URL = 'https://your-backend.onrender.com';
+
+// State management
+let currentSession = null;
+let currentUserId = null;
+
+// DOM Elements
+const elements = {
+  saveBtn: document.getElementById('saveBtn'),
+  logoutBtn: document.getElementById('logoutBtn'),
+  statusEl: document.getElementById('status'),
+  snapsListEl: document.getElementById('snapsList'),
+  recentSnapsEl: document.querySelector('.recent-snaps'),
+  content: document.querySelector('.content')
+};
+
+// --- Initialize on load ---
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check authentication
+  const storage = await chrome.storage.local.get(['session', 'userId']);
+  
+  if (!storage.session) {
+    window.location.href = 'auth.html';
+    return;
+  }
+
+  currentSession = storage.session;
+  currentUserId = storage.userId;
+  
+  // Set Supabase auth
+  await supabaseClient.auth.setSession(currentSession);
+
+  // Set up event listeners
+  elements.saveBtn.onclick = saveCurrentPage;
+  elements.logoutBtn.onclick = handleLogout;
+
+  // Load recent snaps
+  await loadRecentSnaps();
+
+  // Check if we have selected text
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const hasSelection = await checkForSelection(tab);
+  
+  if (hasSelection) {
+    elements.saveBtn.textContent = 'Save Selected Text';
+  } else {
+    elements.saveBtn.textContent = 'Save This Page';
+  }
+});
+
+// --- Check for selected text ---
+async function checkForSelection(tab) {
+  try {
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => window.getSelection().toString().length > 50
+    });
+    return result;
+  } catch {
+    return false;
+  }
+}
+
+// --- Save Current Page ---
+async function saveCurrentPage() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  
+  // Disable button and show loading
+  elements.saveBtn.disabled = true;
+  showStatus('loading', 'Analyzing page content...');
+
+  try {
+    // Get advanced scraped data from content script
+    const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
+    
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to extract content');
+    }
+
+    const metadata = response.metadata;
+    
+    // Prepare text for backend
+    const rawText = `Source URL: ${metadata.url}\n\nContent Type: ${metadata.type}\n\n${metadata.textContent}`
+      .substring(0, 2000); // Stay within limits
+
+    // Send to backend
+    const backendResponse = await fetch(`${BACKEND_URL}/receive_data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentSession.access_token}`
+      },
+      body: JSON.stringify({
+        rawText: rawText,
+        source: 'W'
+      })
+    });
+
+    const data = await backendResponse.json();
+
+    if (!backendResponse.ok) {
+      throw new Error(data.error || 'Backend processing failed');
+    }
+
+    // Success
+    showStatus('success', `Saved: "${data.title}"`);
+    loadRecentSnaps(); // Refresh list
+    
+    // Reset button after delay
+    setTimeout(() => {
+      elements.saveBtn.disabled = false;
+      elements.saveBtn.textContent = 'Save This Page';
+      statusEl.classList.add('hidden');
+    }, 3000);
+
+  } catch (error) {
+    showStatus('error', error.message);
+    elements.saveBtn.disabled = false;
+  }
+}
+
+// --- Load Recent Snaps ---
+async function loadRecentSnaps() {
+  try {
+    const { data: snaps, error } = await supabaseClient
+      .from('content_documents')
+      .select('*')
+      .eq('user_id', currentUserId)
+      .eq('source', 'W')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+
+    if (!snaps || snaps.length === 0) {
+      elements.snapsListEl.innerHTML = '<div class="empty-state">No page snaps yet</div>';
+      return;
+    }
+
+    elements.snapsListEl.innerHTML = snaps.map(snap => `
+      <div class="snap-card" data-id="${snap.id}">
+        <div class="snap-title">${snap.metadata?.title || 'Untitled'}</div>
+        <div class="snap-meta">${snap.metadata?.category || 'note'} • ${new Date(snap.created_at).toLocaleDateString()}</div>
+        <div class="snap-meta" style="margin-top: 4px; font-size: 10px; color: var(--muted);">
+          ${(snap.metadata?.keywords || []).slice(0, 3).join(', ')}
+        </div>
+      </div>
+    `).join('');
+
+    // Add click handlers to snap cards
+    document.querySelectorAll('.snap-card').forEach(card => {
+      card.onclick = () => {
+        const snapId = card.dataset.id;
+        // Open snap in web dashboard
+        chrome.tabs.create({ url: `${BACKEND_URL}/dashboard?id=${snapId}` });
+      };
+    });
+
+  } catch (error) {
+    elements.snapsListEl.innerHTML = `<div class="error">Failed to load snaps: ${error.message}</div>`;
+  }
+}
+
+// --- Handle Logout ---
+async function handleLogout() {
+  try {
+    await supabaseClient.auth.signOut();
+    await chrome.storage.local.remove(['session', 'userId']);
+    window.location.href = 'auth.html';
+  } catch (error) {
+    showStatus('error', 'Logout failed: ' + error.message);
+  }
+}
+
+// --- Status Display ---
+function showStatus(type, message) {
+  elements.statusEl.className = `status ${type}`;
+  elements.statusEl.textContent = message;
+  elements.statusEl.classList.remove('hidden');
+}
 /*
  * Copyright (c) 2010 Arc90 Inc
  *

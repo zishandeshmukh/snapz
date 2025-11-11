@@ -224,27 +224,7 @@ app.post('/searchNLPSql', async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), geminiCalls: geminiCallsThisMinute.count });
 });
-// ----------  READ  ----------
-app.get('/memories', authenticateUser, async (req, res) => {
-  const { data, error } = await req.supabase
-    .from('content_documents')
-    .select('id,created_at,metadata')
-    .order('created_at', { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data || []);
-});
 
-app.get('/search', authenticateUser, async (req, res) => {
-  const q = (req.query.q || '').trim();
-  if (!q) return res.json([]);
-  const { data, error } = await req.supabase
-    .from('content_documents')
-    .select('id,created_at,metadata')
-    .textSearch('fts', q)
-    .order('created_at', { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data || []);
-});
 // --- Start Server --- (unchanged)
 app.listen(PORT, () => {
   console.log(`🚀 SnapMind Backend Running`);

@@ -1,5 +1,5 @@
 // SearchScreen.js
-import { searchMemories } from '../utils/backend';          //  NEW
+import { searchMemories } from '../utils/backend'; 
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
@@ -25,29 +25,29 @@ const SearchScreen = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const { session } = useSupabase();                       //  removed unused memories
+  const { supabase, session, memories } = useSupabase();
 
   const performSearch = useCallback(async (searchQuery) => {
-    if (!searchQuery.trim()) {
-      setResults([]);
-      return;
-    }
-    if (!session) {
-      Alert.alert('Error', 'You must be logged in');
-      return;
-    }
-    setLoading(true);
-    setHasSearched(true);
-    try {
-      const data = await searchMemories(session.access_token, searchQuery);
-      setResults(data);
+  if (!searchQuery.trim()) { setResults([]); return; }
+  if (!session) { Alert.alert('Error','You must be logged in'); return; }
+  setLoading(true); setHasSearched(true);
+  try {
+    const data = await searchMemories(session.access_token, searchQuery);
+    setResults(data);
+  } catch (e) {
+    Alert.alert('Search failed', e.message);
+    setResults([]);
+  } finally { setLoading(false); }
+}, [session]);
+      setResults(filtered);
     } catch (e) {
-      Alert.alert('Search failed', e.message);
+      console.error('Search error:', e);
+      Alert.alert('Error', 'Search failed');
       setResults([]);
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, memories]);
 
   useFocusEffect(
     useCallback(() => {

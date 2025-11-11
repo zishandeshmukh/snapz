@@ -10,7 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@supabase/supabase-js": "^2.80.0"
+    "@supabase/supabase-js": "^2.80.0",
+    "expo-share-intent": "^5.1.0"
   },
   "devDependencies": {
     "eas-cli": "^16.26.0",

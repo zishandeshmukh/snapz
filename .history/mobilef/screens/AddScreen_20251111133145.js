@@ -110,13 +110,7 @@ const AddScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-const sharedText = useShareIntent();
-useEffect(() => {
-  if (sharedText) {
-    setContent(sharedText);
-    setTimeout(() => handleSave(), 2000); // auto-save after 2 s
-  }
-}, [sharedText]);
+
 
 const styles = StyleSheet.create({
   container: {

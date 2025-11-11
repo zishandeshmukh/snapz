@@ -77,16 +77,17 @@ export const SupabaseProvider = ({ children }) => {
   }, []);
 
   /* ---------- 3.  memories CRUD ---------- */
- const fetchMemories = async (activeSession = session) => {
-  if (!activeSession) return;
-  try {
-    const data = await getMemories(activeSession.access_token);
-    setMemories(data);
-  } catch (e) {
-    Alert.alert('Backend unreachable', e.message);
-    setMemories([]);
-  }
-};
+  const fetchMemories = async (activeSession = session) => {
+    if (!activeSession) return;
+    const { data, error } = await supabase
+      .from('content_documents')
+      .select('*')
+      .eq('user_id', activeSession.user.id)
+      .order('created_at', { ascending: false });
+    if (error) return Alert.alert('Error', error.message);
+    setMemories(data || []);
+  };
+
   const toggleFavorite = async (memoryId) => {
     if (!session) throw new Error('Not authenticated');
     const { data: memory } = await supabase
