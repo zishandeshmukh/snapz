@@ -1,11 +1,22 @@
 import { MemoryItem } from "@/types/memory";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import EditMemoryModal from "./EditMemoryModal";
 
 function TypeBadge({ type }: { type: MemoryItem["type"] }) {
     const label = type[0].toUpperCase() + type.slice(1);
     return (
         <span className="text-xs font-medium text-muted-foreground text-zinc-400">
             {label}
+        </span>
+    );
+}
+
+function MoodBadge({ mood }: { mood?: string }) {
+    if (!mood) return null;
+    return (
+        <span className="text-xs font-medium text-green-400">
+            • {mood}
         </span>
     );
 }
@@ -47,16 +58,25 @@ export default function MemoryCard({
 }: {
     item: MemoryItem;
     onToggleFav?: (id: string) => void;
+    onSave?: (updatedItem: MemoryItem) => void;
 }) {
     const imageUrl = getImageForType(item.type);
+    const [isEditing, setIsEditing] = useState(false);
+
+    const handleSave = (updatedItem: MemoryItem) => {
+        onSave?.(updatedItem);
+        setIsEditing(false);
+    };
 
     return (
-        <article className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-900 p-6 shadow-sm transition-all hover:border-zinc-600 hover:shadow-md">
-            
-            <div className="mb-4 flex items-start justify-between gap-4">
+        <>
+            <article className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-900 p-6 shadow-sm transition-all hover:border-zinc-600 hover:shadow-md">
+                
+                <div className="mb-4 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-2 text-xs">
                     <TypeBadge type={item.type} />
                     <EmotionBadge emotion={item.emotion} />
+                    <MoodBadge mood={item.mood} />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     <img
@@ -121,8 +141,22 @@ export default function MemoryCard({
                     >
                         {item.favorite ? "★ Unfavorite" : "☆ Favorite"}
                     </button>
+                    <button
+                        onClick={() => setIsEditing(true)}
+                        className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 font-semibold transition-all hover:border-cyan-500/50 hover:bg-zinc-800"
+                    >
+                        Edit
+                    </button>
                 </div>
             </div>
         </article>
+        {isEditing && (
+            <EditMemoryModal
+                item={item}
+                onClose={() => setIsEditing(false)}
+                onSave={handleSave}
+            />
+        )}
+        </>
     );
 }

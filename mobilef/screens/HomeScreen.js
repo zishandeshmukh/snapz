@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, ActivityIndicator, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupabase } from '../context/SupabaseContext';
 import MemoryCard from '../components/MemoryCard';
-
 const HomeScreen = ({ navigation }) => {
-  const { supabase, session, memories, fetchMemories, toggleFavorite, deleteMemory } = useSupabase();
+  const { supabase, session, memories, fetchMemories, toggleFavorite, deleteMemory, tags } = useSupabase();
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedTag, setSelectedTag] = useState(null);
 
   useEffect(() => {
     if (session) {
       fetchMemories();
     }
   }, [session]);
+
+
+
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -57,6 +60,32 @@ const HomeScreen = ({ navigation }) => {
     return new Date(b.created_at) - new Date(a.created_at);
   });
 
+  const filteredMemories = selectedTag
+    ? sortedMemories.filter(m => m.metadata?.keywords?.includes(selectedTag))
+    : sortedMemories;
+
+  const renderTagFilters = () => (
+    <View style={styles.tagContainer}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <TouchableOpacity
+          style={[styles.tag, !selectedTag ? styles.tagSelected : {}]}
+          onPress={() => setSelectedTag(null)}
+        >
+          <Text style={styles.tagText}>All</Text>
+        </TouchableOpacity>
+        {tags.map(tag => (
+          <TouchableOpacity
+            key={tag}
+            style={[styles.tag, selectedTag === tag ? styles.tagSelected : {}]}
+            onPress={() => setSelectedTag(tag)}
+          >
+            <Text style={styles.tagText}>{tag}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   if (!session) {
     return (
       <View style={styles.centered}>
@@ -64,7 +93,7 @@ const HomeScreen = ({ navigation }) => {
       </View>
     );
   }
-
+  
   return (
     <View style={styles.container}>
       {/* ✅ HEADER */}
@@ -73,8 +102,9 @@ const HomeScreen = ({ navigation }) => {
         <Ionicons name="albums-outline" size={24} color="#06b6d4" />
       </View>
       
+      {renderTagFilters()}
       <FlatList
-        data={sortedMemories}
+        data={filteredMemories}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <MemoryCard 
@@ -170,6 +200,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  tagContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272a',
+  },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: '#27272a',
+    marginRight: 10,
+  },
+  tagSelected: {
+    backgroundColor: '#06b6d4',
+  },
+  tagText: {
+    color: '#fafafa',
+    fontWeight: 'bold',
   },
 });
 

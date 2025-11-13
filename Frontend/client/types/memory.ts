@@ -15,6 +15,7 @@ export interface MemoryItem {
   summary?: string;
   keywords?: string[];
   emotion?: string;
+  mood?: string;
   timestamp: string;
   url?: string;
   type: string;

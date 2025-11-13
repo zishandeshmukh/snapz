@@ -120,11 +120,11 @@ let pendingBatch = [];
 let batchTimer = null;
 
 app.post('/receive_data', async (req, res) => {
-  const { rawText, source } = req.body;
+  const { rawText, source, metadata } = req.body;
   if (!rawText || rawText.length < 20) return res.status(400).json({ error: 'Text too short' });
   if (!source || !['W', 'M'].includes(source)) return res.status(400).json({ error: 'Invalid source' });
 
-  pendingBatch.push({ rawText, source, userId: req.user.id, res });
+  pendingBatch.push({ rawText, source, userId: req.user.id, res, metadata });
   if (batchTimer) clearTimeout(batchTimer);
   batchTimer = setTimeout(processBatch, 30000);
   if (pendingBatch.length >= BATCH_SIZE) {
@@ -159,6 +159,7 @@ async function processBatch() {
         "summary": "2-sentence summary", 
         "keywords": ["tag1", "tag2"],
         "emotions": ["emotion1", "emotion2"],
+        "mood": "happy|sad|neutral|angry|excited",
         "category": "note|article|idea|link",
         "source_url": "extracted URL or null"
       }
@@ -171,12 +172,23 @@ async function processBatch() {
     const responseText = result.response.text().replace(/```json\n|\n```/g, '').trim();
     const analyses = JSON.parse(responseText);
 
-    const inserts = batch.map((item, i) => ({
-      user_id: item.userId,
-      source: item.source,
-      created_at: new Date().toISOString(),
-      metadata: { ...analyses[i], raw_text: item.rawText },
-    }));
+    const inserts = batch.map((item, i) => {
+      const analysis = analyses[i] || {};
+      const finalMetadata = {
+        ...analysis,
+        raw_text: item.rawText,
+        ...(item.metadata || {}),
+      };
+      if (item.metadata?.keywords) {
+        finalMetadata.keywords = item.metadata.keywords;
+      }
+      return {
+        user_id: item.userId,
+        source: item.source,
+        created_at: new Date().toISOString(),
+        metadata: finalMetadata,
+      };
+    });
     const { error: dbError } = await supabase.from('content_documents').insert(inserts);
     if (dbError) throw dbError;
 
@@ -224,6 +236,40 @@ app.post('/searchNLPSql', async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), geminiCalls: geminiCallsThisMinute.count });
 });
+
+// --- New Endpoint for Tag and Mood Generation ---
+app.post('/generate-tags-and-mood', authenticateUser, async (req, res) => {
+    const { rawText } = req.body;
+    if (!rawText || rawText.length < 20) {
+        return res.status(400).json({ error: 'Text too short for analysis' });
+    }
+
+    geminiCallsThisMinute.count++;
+    try {
+        const result = await geminiModel.generateContent([
+            {
+                text: `ANALYZE_AND_RETURN_VALID_JSON_ONLY:
+      
+      You are a data analysis engine. For the following text, return:
+      {
+        "tags": ["tag1", "tag2", "tag3"],
+        "mood": "happy|sad|neutral|angry|excited|inspired|curious"
+      }
+      
+      Return a single JSON object.`,
+            },
+            { text: rawText.substring(0, 1000) }, // Limit text size for efficiency
+        ]);
+
+        const responseText = result.response.text().replace(/```json\n|\n```/g, '').trim();
+        const analysis = JSON.parse(responseText);
+
+        res.json(analysis);
+    } catch (error) {
+        console.error('Tag and mood generation failed:', error.message);
+        res.status(500).json({ error: 'Failed to generate tags and mood' });
+    }
+});
 // ----------  READ  ----------
 app.get('/memories', authenticateUser, async (req, res) => {
   const { data, error } = await req.supabase
@@ -232,6 +278,19 @@ app.get('/memories', authenticateUser, async (req, res) => {
     .order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data || []);
+});
+
+app.put('/memories/:id', authenticateUser, async (req, res) => {
+    const { id } = req.params;
+    const { metadata } = req.body;
+
+    const { data, error } = await req.supabase
+        .from('content_documents')
+        .update({ metadata })
+        .eq('id', id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
 app.get('/search', authenticateUser, async (req, res) => {

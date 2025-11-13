@@ -7,6 +7,7 @@ import {
   Share 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 // Helper to format date
 const formatDate = (dateString) => {
@@ -23,9 +24,16 @@ const formatDate = (dateString) => {
 };
 
 const MemoryCard = ({ memory, onToggleFavorite, onDelete }) => {
+  const navigation = useNavigation();
   const { metadata, created_at, source, id } = memory;
-  const { title, summary, keywords, emotions, favorite } = metadata || {};
-
+  const { title, summary, keywords, emotions, favorite, mood } = metadata || {};
+  const moodIcons = {
+    happy: 'happy-outline',
+    sad: 'sad-outline',
+    excited: 'star-outline',
+    calm: 'leaf-outline',
+    productive: 'flash-outline',
+  };
   const sourceTag = source === 'M' ? '(M)' : source === 'W' ? '(W)' : '';
 
   // ✅ Share functionality
@@ -50,6 +58,14 @@ const MemoryCard = ({ memory, onToggleFavorite, onDelete }) => {
         </View>
         
         <View style={styles.iconContainer}>
+          {mood && (
+            <Ionicons
+              name={moodIcons[mood] || 'help-circle-outline'}
+              size={22}
+              color="#a1a1aa"
+              style={styles.icon}
+            />
+          )}
           {/* ✅ Favorite Button */}
           <TouchableOpacity onPress={() => onToggleFavorite?.(id)}>
             <Ionicons 
@@ -70,6 +86,16 @@ const MemoryCard = ({ memory, onToggleFavorite, onDelete }) => {
             />
           </TouchableOpacity>
           
+          {/* ✅ Edit Button */}
+          <TouchableOpacity onPress={() => navigation.navigate('Edit', { memory })}>
+            <Ionicons
+              name="create-outline"
+              size={22}
+              color="#a1a1aa"
+              style={styles.icon}
+            />
+          </TouchableOpacity>
+
           {/* ✅ Delete Button */}
           {onDelete && (
             <TouchableOpacity onPress={() => onDelete(id)}>

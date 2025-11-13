@@ -6,9 +6,8 @@ import { createServer } from "./server/index.ts";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "127.0.0.1",
     port: 8080,
-    open: true,
     fs: {
       // Allow project root so Vite can serve index.html, plus client and shared
       allow: ["./", "./client", "./shared"],

@@ -88,6 +88,10 @@
       ]
     ],
     "extra": {
+      "SUPABASE_URL": process.env.SUPABASE_URL,
+      "SUPABASE_ANON_KEY": process.env.SUPABASE_ANON_KEY,
+      "BACKEND_API_URL": process.env.BACKEND_API_URL,
+      "REDIRECT_URL": process.env.REDIRECT_URL,
       "eas": {
         "projectId": "ace5743e-17c7-444d-b4df-38bf2ac50136"
       }

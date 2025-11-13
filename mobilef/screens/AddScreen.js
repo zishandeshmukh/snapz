@@ -15,15 +15,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupabase } from '../context/SupabaseContext';
 import { saveDataToBackend } from '../utils/shareUtils';
 import { useNavigation } from '@react-navigation/native';
+import { useShareIntent } from 'expo-share-intent';
 
 const AddScreen = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
+  const [mood, setMood] = useState(null);
   const [loading, setLoading] = useState(false);
   const { session, getAuthToken } = useSupabase();
   const navigation = useNavigation();
-
+  const moods = [
+    { label: 'Happy', value: 'happy', icon: 'happy-outline' },
+    { label: 'Sad', value: 'sad', icon: 'sad-outline' },
+    { label: 'Excited', value: 'excited', icon: 'star-outline' },
+    { label: 'Calm', value: 'calm', icon: 'leaf-outline' },
+    { label: 'Productive', value: 'productive', icon: 'flash-outline' },
+  ];
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
       Alert.alert('Error', 'Please add a title and content');
@@ -40,8 +48,9 @@ const AddScreen = () => {
     try {
       // ✅ Use backend API
       const token = getAuthToken();
-      const fullText = `${title}\n\n${content}\n\nTags: ${tags}`;
-      await saveDataToBackend(fullText, token);
+      const fullText = `${title}\n\n${content}`;
+      const keywords = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      await saveDataToBackend(fullText, token, { keywords, mood });
 
       Alert.alert('Success', 'Memory saved!');
       setTitle('');
@@ -98,6 +107,24 @@ const AddScreen = () => {
           value={tags}
           onChangeText={setTags}
         />
+
+        <Text style={styles.label}>How are you feeling?</Text>
+        <View style={styles.moodContainer}>
+          {moods.map(m => (
+            <TouchableOpacity
+              key={m.value}
+              style={[styles.moodButton, mood === m.value ? styles.moodSelected : {}]}
+              onPress={() => setMood(m.value)}
+            >
+              <Ionicons
+                name={m.icon}
+                size={24}
+                color={mood === m.value ? '#fff' : '#a1a1aa'}
+              />
+              <Text style={styles.moodLabel}>{m.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {loading ? (
           <ActivityIndicator size="large" color="#06b6d4" style={styles.loader} />
@@ -175,6 +202,31 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  moodContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  moodButton: {
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    backgroundColor: '#18181b',
+    width: '30%',
+    marginBottom: 10,
+  },
+  moodSelected: {
+    backgroundColor: '#06b6d4',
+    borderColor: '#06b6d4',
+  },
+  moodLabel: {
+    color: '#a1a1aa',
+    marginTop: 5,
+    fontSize: 12,
   },
 });
 

@@ -2,7 +2,7 @@ import { BACKEND_API_URL } from './constants';
 import { Alert } from 'react-native';
 
 // ✅ Save data to backend
-export const saveDataToBackend = async (text, token) => {
+export const saveDataToBackend = async (text, token, metadata = {}) => {
   if (!token) {
     throw new Error("You must be logged in to save.");
   }
@@ -16,7 +16,8 @@ export const saveDataToBackend = async (text, token) => {
       },
       body: JSON.stringify({
         rawText: text,
-        source: 'M'
+        source: 'M',
+        metadata,
       })
     });
 

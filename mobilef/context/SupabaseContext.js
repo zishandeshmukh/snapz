@@ -13,6 +13,7 @@ export const SupabaseProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [memories, setMemories] = useState([]);
+  const [tags, setTags] = useState([]);
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
@@ -82,6 +83,9 @@ export const SupabaseProvider = ({ children }) => {
   try {
     const data = await getMemories(activeSession.access_token);
     setMemories(data);
+    const allTags = data.flatMap(m => m.metadata?.keywords || []);
+    const uniqueTags = [...new Set(allTags)];
+    setTags(uniqueTags);
   } catch (e) {
     Alert.alert('Backend unreachable', e.message);
     setMemories([]);
@@ -127,6 +131,7 @@ export const SupabaseProvider = ({ children }) => {
     session,
     loading,
     memories,
+    tags,
     getAuthToken: () => session?.access_token ?? null,
     logout,
     toggleFavorite,

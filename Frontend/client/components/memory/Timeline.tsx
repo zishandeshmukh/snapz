@@ -6,9 +6,11 @@ import MemoryCard from "./MemoryCard";
 export default function Timeline({
   items,
   onToggleFav,
+  onSave,
 }: {
   items: MemoryItem[];
   onToggleFav?: (id: string) => void;
+  onSave?: (updatedItem: MemoryItem) => void;
 }) {
   // This is your original, correct rendering logic.
   const groups = groupByDate(items);
@@ -26,7 +28,7 @@ export default function Timeline({
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {groups[k].map((m) => (
-              <MemoryCard key={m.id} item={m} onToggleFav={onToggleFav} />
+              <MemoryCard key={m.id} item={m} onToggleFav={onToggleFav} onSave={onSave} />
             ))}
           </div>
         </section>

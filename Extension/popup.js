@@ -897,6 +897,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load recent snaps
   await loadRecentSnaps();
 
+  // Subscribe to real-time updates
+  const channel = supabaseClient.channel('content_documents');
+  channel
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'content_documents' }, (payload) => {
+      loadRecentSnaps();
+    })
+    .subscribe();
+
   // Check if we have selected text
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const hasSelection = await checkForSelection(tab);
@@ -927,6 +935,8 @@ async function saveCurrentPage() {
   
   // Disable button and show loading
   elements.saveBtn.disabled = true;
+  document.getElementById('spinner').style.display = 'inline-block';
+  document.getElementById('saveBtnText').textContent = 'Saving...';
   showStatus('loading', 'Analyzing page content...');
 
   try {
@@ -942,6 +952,24 @@ async function saveCurrentPage() {
     // Prepare text for backend
     const rawText = `Source URL: ${metadata.url}\n\nContent Type: ${metadata.type}\n\n${metadata.textContent}`
       .substring(0, 2000); // Stay within limits
+    
+    // --- New: Call backend to generate tags and mood ---
+    const analysisResponse = await fetch(`${BACKEND_URL}/generate-tags-and-mood`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentSession.access_token}`
+        },
+        body: JSON.stringify({ rawText: rawText })
+    });
+
+    if (!analysisResponse.ok) {
+        throw new Error('Failed to generate tags and mood');
+    }
+
+    const analysis = await analysisResponse.json();
+    const tags = analysis.tags || [];
+    const mood = analysis.mood || '';
 
     // Send to backend
     const backendResponse = await fetch(`${BACKEND_URL}/receive_data`, {
@@ -952,7 +980,11 @@ async function saveCurrentPage() {
       },
       body: JSON.stringify({
         rawText: rawText,
-        source: 'W'
+        source: 'W',
+        metadata: {
+            keywords: tags,
+            mood: mood,
+        },
       })
     });
 
@@ -969,13 +1001,16 @@ async function saveCurrentPage() {
     // Reset button after delay
     setTimeout(() => {
       elements.saveBtn.disabled = false;
-      elements.saveBtn.textContent = 'Save This Page';
-      statusEl.classList.add('hidden');
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('saveBtnText').textContent = 'Save This Page';
+      elements.statusEl.classList.add('hidden');
     }, 3000);
 
   } catch (error) {
     showStatus('error', error.message);
     elements.saveBtn.disabled = false;
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('saveBtnText').textContent = 'Save This Page';
   }
 }
 
